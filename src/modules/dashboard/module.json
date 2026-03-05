@@ -1,0 +1,6 @@
+{
+  "name": "Dashboard",
+  "icon": "layout-dashboard",
+  "route": "/",
+  "order": 0
+}

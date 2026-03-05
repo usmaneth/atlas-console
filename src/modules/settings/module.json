@@ -1,0 +1,6 @@
+{
+  "name": "Settings",
+  "icon": "settings",
+  "route": "/settings",
+  "order": 4
+}

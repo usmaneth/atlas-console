@@ -1,0 +1,6 @@
+{
+  "name": "Memory",
+  "icon": "brain",
+  "route": "/memory",
+  "order": 3
+}

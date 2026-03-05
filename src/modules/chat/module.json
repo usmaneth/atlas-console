@@ -1,0 +1,6 @@
+{
+  "name": "Chat",
+  "icon": "message-square",
+  "route": "/chat",
+  "order": 2
+}

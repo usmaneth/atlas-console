@@ -1,0 +1,6 @@
+{
+  "name": "Activity",
+  "icon": "activity",
+  "route": "/activity",
+  "order": 1
+}

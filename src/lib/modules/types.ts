@@ -7,5 +7,5 @@ export interface ModuleManifest {
 
 export interface ModuleDefinition extends ModuleManifest {
   id: string;
-  component: React.ComponentType;
+  component: React.ComponentType<{ onNavigate?: (route: string) => void }>;
 }

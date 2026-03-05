@@ -238,7 +238,7 @@ export class OpenClawClient {
         minProtocol: 3,
         maxProtocol: 3,
         client: {
-          id: "atlas-console",
+          id: "openclaw-control-ui",
           version: "1.0.0",
           platform: "macos",
           mode: "webchat",

@@ -26,6 +26,13 @@ interface DashboardProps {
   onNavigate?: (route: string) => void;
 }
 
+interface GitHubCI {
+  passing: number;
+  failing: number;
+  pending: number;
+  failedChecks: { name: string; url: string; duration: string }[];
+}
+
 interface GitHubPR {
   title: string;
   state: string;
@@ -34,6 +41,7 @@ interface GitHubPR {
   repoName: string;
   createdAt: string;
   updatedAt?: string;
+  ci?: GitHubCI;
 }
 
 interface GitHubCommit {
@@ -360,30 +368,78 @@ export default function DashboardPage({ onNavigate }: DashboardProps) {
                     </div>
                     <div className="divide-y divide-border">
                       {github.prs.slice(0, 5).map((pr, i) => (
-                        <a
-                          key={i}
-                          href={pr.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-start gap-2.5 px-3 py-2 hover:bg-accent/30 transition-colors group"
-                        >
-                          <GitPullRequest className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground/50" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[13px] truncate">{pr.title}</span>
-                              <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-50 transition-opacity" />
+                        <div key={i} className="group">
+                          <a
+                            href={pr.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-start gap-2.5 px-3 py-2 hover:bg-accent/30 transition-colors"
+                          >
+                            <GitPullRequest className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground/50" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[13px] truncate">{pr.title}</span>
+                                <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-50 transition-opacity" />
+                              </div>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[10px] font-mono text-muted-foreground/50">{pr.repoName}</span>
+                                <Badge variant="secondary" className={`text-[9px] px-1.5 py-0 ${prStateBadge(pr.state)}`}>
+                                  {pr.state}
+                                </Badge>
+                                {pr.ci && (
+                                  <span className="flex items-center gap-1">
+                                    {pr.ci.failing > 0 ? (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-red-500/15 text-red-400 border-red-500/20">
+                                        ✗ {pr.ci.failing} failed
+                                      </Badge>
+                                    ) : pr.ci.passing > 0 ? (
+                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border-emerald-500/20">
+                                        ✓ {pr.ci.passing} passed
+                                      </Badge>
+                                    ) : null}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[10px] font-mono text-muted-foreground/50">{pr.repoName}</span>
-                              <Badge variant="secondary" className={`text-[9px] px-1.5 py-0 ${prStateBadge(pr.state)}`}>
-                                {pr.state}
-                              </Badge>
+                            <span className="text-[10px] font-mono text-muted-foreground/40 shrink-0 mt-0.5">
+                              {timeAgo(pr.updatedAt || pr.createdAt)}
+                            </span>
+                          </a>
+                          {/* CI Failure Details + Fix Button */}
+                          {pr.ci && pr.ci.failing > 0 && (
+                            <div className="mx-3 mb-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2">
+                              <div className="space-y-1">
+                                {pr.ci.failedChecks.map((check, ci) => (
+                                  <div key={ci} className="flex items-center gap-2">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-red-400 shrink-0" />
+                                    <a
+                                      href={check.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-[11px] text-red-400/80 hover:text-red-300 truncate"
+                                    >
+                                      {check.name}
+                                    </a>
+                                    {check.duration && (
+                                      <span className="text-[9px] font-mono text-muted-foreground/40">{check.duration}</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  // TODO: wire to agent dispatch
+                                  alert(`Would dispatch atlas-zeta-dev to fix CI failures on ${pr.repoName}#${pr.url.split("/").pop()}`);
+                                }}
+                                className="mt-2 flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-violet-500/15 border border-violet-500/25 text-violet-400 text-[11px] font-medium hover:bg-violet-500/25 transition-colors"
+                              >
+                                <Bot className="h-3 w-3" />
+                                Fix with atlas-zeta-dev
+                              </button>
                             </div>
-                          </div>
-                          <span className="text-[10px] font-mono text-muted-foreground/40 shrink-0 mt-0.5">
-                            {timeAgo(pr.updatedAt || pr.createdAt)}
-                          </span>
-                        </a>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>

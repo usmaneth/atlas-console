@@ -74,22 +74,33 @@ export default function SettingsPage() {
       .finally(() => setLoadingWorkspace(false));
   }, []);
 
-  // Build integration list from config channels + WS channel status
+  // Build integration list from WS channel accounts + config fallback
   const integrations = (() => {
-    if (config?.channels) {
-      return Object.entries(config.channels as Record<string, Record<string, unknown>>).map(([key, ch]) => {
-        const wsChannel = channels.find((c) => c.name.toLowerCase() === key || c.type?.toLowerCase() === key);
-        const channelStatus = wsChannel?.status || (ch.enabled ? "connected" : "disconnected");
+    if (channels.length > 0) {
+      return channels.map((ch) => {
+        const chType = ch.channelType?.toLowerCase() || "system";
+        const channelStatus = ch.connected ? (ch.running ? "connected" : "degraded") : "disconnected";
         return {
-          name: key.charAt(0).toUpperCase() + key.slice(1),
-          key,
-          icon: channelIcons[key] || MessageSquare,
-          color: channelColors[key] || "text-muted-foreground",
-          status: channelStatus as string,
-          description: `Configured in openclaw.json`,
-          enabled: ch.enabled as boolean,
+          name: ch.label || ch.accountId,
+          key: chType,
+          icon: channelIcons[chType] || MessageSquare,
+          color: channelColors[chType] || "text-muted-foreground",
+          status: channelStatus,
+          description: ch.lastError || `${chType} integration`,
+          enabled: ch.enabled,
         };
       });
+    }
+    if (config?.channels) {
+      return Object.entries(config.channels as Record<string, Record<string, unknown>>).map(([key, ch]) => ({
+        name: key.charAt(0).toUpperCase() + key.slice(1),
+        key,
+        icon: channelIcons[key] || MessageSquare,
+        color: channelColors[key] || "text-muted-foreground",
+        status: (ch.enabled ? "connected" : "disconnected") as string,
+        description: "Configured in openclaw.json",
+        enabled: ch.enabled as boolean,
+      }));
     }
     return [];
   })();

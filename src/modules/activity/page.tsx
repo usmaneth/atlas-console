@@ -103,9 +103,9 @@ export default function ActivityPage() {
   const channelList = useMemo(() => {
     if (channels.length > 0) {
       return channels.map((ch) => ({
-        name: ch.name,
-        status: ch.status,
-        type: ch.type?.toLowerCase() || ch.name.toLowerCase(),
+        name: ch.label || ch.accountId,
+        status: ch.connected ? (ch.running ? "connected" : "degraded") : "disconnected",
+        type: ch.channelType?.toLowerCase() || "system",
       }));
     }
     if (config?.channels) {

@@ -1,11 +1,17 @@
-import { type GatewayConfig, type GatewayEventHandler } from "./types";
+import type {
+  GatewayConfig,
+  GatewayEventHandler,
+  GatewayResponse,
+  GatewayEvent,
+  HelloOkPayload,
+} from "./types";
 import { type ConnectionStatus } from "@/lib/types";
 
 const MAX_RECONNECT_DELAY = 30000;
 const INITIAL_RECONNECT_DELAY = 1000;
 
 interface PendingRequest {
-  resolve: (value: unknown) => void;
+  resolve: (value: Record<string, unknown>) => void;
   reject: (reason: unknown) => void;
   timer: ReturnType<typeof setTimeout>;
 }
@@ -20,8 +26,11 @@ export class OpenClawClient {
   private _status: ConnectionStatus = "disconnected";
   private shouldReconnect = true;
   private requestId = 0;
-  private pending = new Map<number, PendingRequest>();
+  private pending = new Map<string, PendingRequest>();
   private REQUEST_TIMEOUT = 15000;
+  private helloPayload: HelloOkPayload | null = null;
+  private connectResolve: ((payload: HelloOkPayload) => void) | null = null;
+  private connectReject: ((err: Error) => void) | null = null;
 
   constructor(config: GatewayConfig) {
     this.config = config;
@@ -31,45 +40,56 @@ export class OpenClawClient {
     return this._status;
   }
 
-  connect(): void {
-    if (this.ws?.readyState === WebSocket.OPEN) return;
+  get hello(): HelloOkPayload | null {
+    return this.helloPayload;
+  }
+
+  connect(): Promise<HelloOkPayload> {
+    if (this.ws?.readyState === WebSocket.OPEN && this.helloPayload) {
+      return Promise.resolve(this.helloPayload);
+    }
 
     this.shouldReconnect = true;
     this.setStatus("connecting");
 
-    try {
-      this.ws = new WebSocket(this.config.url);
+    return new Promise<HelloOkPayload>((resolve, reject) => {
+      this.connectResolve = resolve;
+      this.connectReject = reject;
 
-      this.ws.onopen = () => {
-        this.reconnectDelay = INITIAL_RECONNECT_DELAY;
-        this.sendRaw({
-          method: "connect",
-          params: { auth: { token: this.config.token } },
-        });
-      };
+      try {
+        this.ws = new WebSocket(this.config.url);
 
-      this.ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          this.handleMessage(data);
-        } catch {
-          // ignore malformed messages
-        }
-      };
+        this.ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data) as Record<string, unknown>;
+            this.handleFrame(data);
+          } catch {
+            // ignore malformed
+          }
+        };
 
-      this.ws.onclose = () => {
-        this.setStatus("disconnected");
-        this.rejectAllPending("Connection closed");
-        this.scheduleReconnect();
-      };
+        this.ws.onclose = () => {
+          this.setStatus("disconnected");
+          this.rejectAllPending("Connection closed");
+          if (this.connectReject) {
+            this.connectReject(new Error("Connection closed before handshake"));
+            this.connectResolve = null;
+            this.connectReject = null;
+          }
+          this.scheduleReconnect();
+        };
 
-      this.ws.onerror = () => {
+        this.ws.onerror = () => {
+          this.setStatus("error");
+        };
+      } catch {
         this.setStatus("error");
-      };
-    } catch {
-      this.setStatus("error");
-      this.scheduleReconnect();
-    }
+        reject(new Error("Failed to create WebSocket"));
+        this.connectResolve = null;
+        this.connectReject = null;
+        this.scheduleReconnect();
+      }
+    });
   }
 
   disconnect(): void {
@@ -79,42 +99,46 @@ export class OpenClawClient {
       this.reconnectTimer = null;
     }
     this.rejectAllPending("Disconnected");
+    if (this.connectReject) {
+      this.connectReject(new Error("Disconnected"));
+      this.connectResolve = null;
+      this.connectReject = null;
+    }
     this.ws?.close();
     this.ws = null;
     this.setStatus("disconnected");
   }
 
-  request(method: string, params?: Record<string, unknown>): Promise<unknown> {
+  request(method: string, params?: Record<string, unknown>): Promise<Record<string, unknown>> {
     return new Promise((resolve, reject) => {
       if (this.ws?.readyState !== WebSocket.OPEN) {
         reject(new Error("Not connected"));
         return;
       }
 
-      const id = ++this.requestId;
+      const id = String(++this.requestId);
       const timer = setTimeout(() => {
         this.pending.delete(id);
         reject(new Error(`Request ${method} timed out`));
       }, this.REQUEST_TIMEOUT);
 
       this.pending.set(id, { resolve, reject, timer });
-      this.sendRaw({ id, method, params });
+      this.sendFrame({
+        type: "req",
+        id,
+        method,
+        params: params ?? {},
+      });
     });
   }
 
-  send(method: string, params?: Record<string, unknown>): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.sendRaw({ method, params });
+  on(eventName: string, handler: GatewayEventHandler): () => void {
+    if (!this.eventListeners.has(eventName)) {
+      this.eventListeners.set(eventName, new Set());
     }
-  }
-
-  on(eventType: string, handler: GatewayEventHandler): () => void {
-    if (!this.eventListeners.has(eventType)) {
-      this.eventListeners.set(eventType, new Set());
-    }
-    this.eventListeners.get(eventType)!.add(handler);
+    this.eventListeners.get(eventName)!.add(handler);
     return () => {
-      this.eventListeners.get(eventType)?.delete(handler);
+      this.eventListeners.get(eventName)?.delete(handler);
     };
   }
 
@@ -125,49 +149,114 @@ export class OpenClawClient {
     };
   }
 
-  private handleMessage(data: Record<string, unknown>): void {
-    // Hello / connect response
-    if (
-      data.type === "hello" ||
-      data.method === "hello" ||
-      (data.id && data.result !== undefined)
-    ) {
-      if (this._status !== "connected") {
-        this.setStatus("connected");
-      }
-    }
+  private handleFrame(data: Record<string, unknown>): void {
+    const frameType = data.type as string;
 
-    // JSON-RPC response with matching pending request
-    if (typeof data.id === "number" && this.pending.has(data.id)) {
-      const pending = this.pending.get(data.id)!;
-      this.pending.delete(data.id);
-      clearTimeout(pending.timer);
-
-      if (data.error) {
-        pending.reject(data.error);
-      } else {
-        pending.resolve(data.result);
-      }
+    if (frameType === "event") {
+      this.handleEvent(data as unknown as GatewayEvent);
       return;
     }
 
-    // Event-style: { event: 'chat', data: { ... } }
-    if (typeof data.event === "string") {
-      const payload = (data.data as Record<string, unknown>) ?? data;
-      this.emit(data.event, payload);
-      this.emit("*", data);
+    if (frameType === "res") {
+      this.handleResponse(data as unknown as GatewayResponse);
       return;
-    }
-
-    // Fallback: emit by type
-    if (typeof data.type === "string") {
-      this.emit(data.type, data);
-      this.emit("*", data);
     }
   }
 
-  private sendRaw(message: Record<string, unknown>): void {
-    this.ws?.send(JSON.stringify(message));
+  private handleEvent(event: GatewayEvent): void {
+    const eventName = event.event;
+    const payload = event.payload ?? {};
+
+    if (eventName === "connect.challenge") {
+      this.sendConnectRequest(payload);
+      return;
+    }
+
+    // Emit by event name
+    this.emit(eventName, payload);
+    this.emit("*", { event: eventName, payload });
+  }
+
+  private handleResponse(res: GatewayResponse): void {
+    const id = res.id;
+    const pending = this.pending.get(id);
+    if (!pending) return;
+
+    this.pending.delete(id);
+    clearTimeout(pending.timer);
+
+    if (res.ok && res.payload) {
+      // Check if this is the hello-ok connect response
+      if ((res.payload as Record<string, unknown>).type === "hello-ok") {
+        this.helloPayload = res.payload as unknown as HelloOkPayload;
+        this.reconnectDelay = INITIAL_RECONNECT_DELAY;
+        this.setStatus("connected");
+        if (this.connectResolve) {
+          this.connectResolve(this.helloPayload);
+          this.connectResolve = null;
+          this.connectReject = null;
+        }
+      }
+      pending.resolve(res.payload);
+    } else {
+      pending.reject(res.error ?? new Error("Request failed"));
+    }
+  }
+
+  private sendConnectRequest(_challengePayload: Record<string, unknown>): void {
+    const id = String(++this.requestId);
+
+    const timer = setTimeout(() => {
+      this.pending.delete(id);
+      if (this.connectReject) {
+        this.connectReject(new Error("Connect handshake timed out"));
+        this.connectResolve = null;
+        this.connectReject = null;
+      }
+    }, this.REQUEST_TIMEOUT);
+
+    this.pending.set(id, {
+      resolve: (payload) => {
+        // hello-ok is handled in handleResponse
+        void payload;
+      },
+      reject: (err) => {
+        if (this.connectReject) {
+          this.connectReject(err instanceof Error ? err : new Error(String(err)));
+          this.connectResolve = null;
+          this.connectReject = null;
+        }
+      },
+      timer,
+    });
+
+    this.sendFrame({
+      type: "req",
+      id,
+      method: "connect",
+      params: {
+        minProtocol: 3,
+        maxProtocol: 3,
+        client: {
+          id: "atlas-console",
+          version: "1.0.0",
+          platform: "macos",
+          mode: "webchat",
+        },
+        role: "operator",
+        scopes: ["operator.read", "operator.write"],
+        caps: [],
+        commands: [],
+        permissions: {},
+        auth: { token: this.config.token },
+        locale: "en-US",
+        userAgent: "atlas-console/1.0.0",
+      },
+    });
+  }
+
+  private sendFrame(frame: Record<string, unknown>): void {
+    this.ws?.send(JSON.stringify(frame));
   }
 
   private setStatus(status: ConnectionStatus): void {
@@ -191,7 +280,7 @@ export class OpenClawClient {
     if (!this.shouldReconnect) return;
 
     this.reconnectTimer = setTimeout(() => {
-      this.connect();
+      this.connect().catch(() => {});
     }, this.reconnectDelay);
 
     this.reconnectDelay = Math.min(

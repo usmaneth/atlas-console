@@ -56,11 +56,12 @@ function DashboardClock() {
   );
 }
 
-function formatUptime(seconds: number | undefined): string {
-  if (!seconds) return "—";
-  const d = Math.floor(seconds / 86400);
-  const h = Math.floor((seconds % 86400) / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
+function formatUptime(ms: number | undefined): string {
+  if (!ms) return "—";
+  const totalSeconds = Math.floor(ms / 1000);
+  const d = Math.floor(totalSeconds / 86400);
+  const h = Math.floor((totalSeconds % 86400) / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
   return `${d}d ${h}h ${m}m`;
 }
 
@@ -85,9 +86,9 @@ export default function DashboardPage({ onNavigate }: DashboardProps) {
   const channelList = useMemo(() => {
     if (channels.length > 0) {
       return channels.map((ch) => ({
-        name: ch.name,
-        status: ch.status,
-        icon: integrationIcons[ch.type?.toLowerCase()] || MessageSquare,
+        name: ch.label || ch.accountId,
+        status: ch.connected ? (ch.running ? "connected" : "degraded") : "disconnected",
+        icon: integrationIcons[ch.channelType?.toLowerCase()] || MessageSquare,
       }));
     }
     // Fallback: derive from config channels
@@ -116,7 +117,7 @@ export default function DashboardPage({ onNavigate }: DashboardProps) {
         </Badge>
         <DashboardClock />
         <span className="text-[10px] font-mono text-muted-foreground/50">
-          Uptime: {formatUptime(gatewayInfo?.uptime)}
+          Uptime: {formatUptime(gatewayInfo?.uptimeMs)}
         </span>
       </div>
 

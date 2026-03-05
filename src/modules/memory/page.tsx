@@ -217,7 +217,7 @@ export default function MemoryPage() {
         await Promise.all(
           listData.files.map(async (file: { name: string; modified: string }) => {
             try {
-              const res = await fetch(`/api/memory/${encodeURIComponent(file.name)}`);
+              const res = await fetch(`/api/memory/${file.name.split("/").map(encodeURIComponent).join("/")}`);
               const data = await res.json();
               if (data.content) {
                 const parsed = parseMemoryFile(file.name, data.content, file.modified);

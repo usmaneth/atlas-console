@@ -14,11 +14,13 @@ import {
   MessageSquare,
   Brain,
   Settings,
+  Bot,
   type LucideIcon,
 } from "lucide-react";
 
 const iconMap: Record<string, LucideIcon> = {
   "layout-dashboard": LayoutDashboard,
+  bot: Bot,
   activity: Activity,
   "message-square": MessageSquare,
   brain: Brain,

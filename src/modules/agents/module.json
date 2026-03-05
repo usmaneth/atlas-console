@@ -1,0 +1,6 @@
+{
+  "name": "Agents",
+  "icon": "bot",
+  "route": "/agents",
+  "order": 1.5
+}

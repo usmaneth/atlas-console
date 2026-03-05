@@ -1,328 +1,330 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useGateway } from "@/lib/openclaw/hooks";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Activity,
   GitPullRequest,
   Brain,
-  Zap,
   MessageSquare,
-  ArrowRight,
-  AlertTriangle,
-  Calendar,
-  Bell,
   Github,
   FileText,
+  Mail,
+  Zap,
+  Calendar,
+  AlertTriangle,
+  Bot,
 } from "lucide-react";
 
 interface DashboardProps {
   onNavigate?: (route: string) => void;
 }
 
-function StatusDot({ status }: { status: string }) {
-  const color =
-    status === "connected"
-      ? "bg-emerald-500"
-      : status === "connecting"
-        ? "bg-yellow-500 animate-pulse"
-        : "bg-red-500";
-  return <span className={`inline-block h-2 w-2 rounded-full ${color}`} />;
-}
+// --- Mock data ---
 
-const mockActivity = [
+const agentData = [
+  {
+    id: "atlas",
+    name: "Atlas",
+    color: "bg-emerald-500",
+    status: "active" as const,
+    task: "Reviewing PR #248",
+  },
+  {
+    id: "duke",
+    name: "Duke",
+    color: "bg-violet-500",
+    status: "active" as const,
+    task: "Dark mode toggle — ai-portal",
+  },
+  {
+    id: "anuma",
+    name: "Anuma",
+    color: "bg-amber-500",
+    status: "in-dev" as const,
+    task: null,
+  },
+];
+
+const priorityQueue = [
   {
     id: "1",
+    title: "PR #248 needs your review",
+    subtitle: "openclaw-gateway — websocket reconnect logic",
+    urgency: "red" as const,
+    time: "5m ago",
     icon: GitPullRequest,
-    color: "text-github",
-    title: "Reviewed PR #247 — auth middleware refactor",
-    time: "2m ago",
-    integration: "github",
   },
   {
     id: "2",
+    title: "3 unread threads in #eng-general",
+    subtitle: "Slack — architecture discussion, deploy blockers",
+    urgency: "yellow" as const,
+    time: "12m ago",
     icon: MessageSquare,
-    color: "text-slack",
-    title: "Summarized #eng-general (14 new messages)",
-    time: "8m ago",
-    integration: "slack",
   },
   {
     id: "3",
-    icon: Brain,
-    color: "text-emerald-400",
-    title: "Updated memory: project architecture decisions",
-    time: "15m ago",
-    integration: "system",
+    title: "Standup in 25 minutes",
+    subtitle: "Daily sync — Google Meet",
+    urgency: "yellow" as const,
+    time: "in 25m",
+    icon: Calendar,
   },
   {
     id: "4",
-    icon: Github,
-    color: "text-github",
-    title: "CI passed on atlas-console/main (build #389)",
-    time: "22m ago",
-    integration: "github",
-  },
-  {
-    id: "5",
-    icon: MessageSquare,
-    color: "text-indigo-400",
-    title: "Responded to @sarah in #design-feedback",
-    time: "34m ago",
-    integration: "discord",
-  },
-  {
-    id: "6",
-    icon: FileText,
-    color: "text-notion",
-    title: "Synced Sprint 12 task board from Notion",
-    time: "41m ago",
-    integration: "notion",
-  },
-  {
-    id: "7",
-    icon: GitPullRequest,
-    color: "text-github",
-    title: "Drafted review for PR #245 — API rate limiting",
-    time: "1h ago",
-    integration: "github",
-  },
-  {
-    id: "8",
-    icon: Brain,
-    color: "text-emerald-400",
-    title: "Indexed 3 new daily notes from journal",
-    time: "1h ago",
-    integration: "system",
+    title: "Notion OAuth token expired",
+    subtitle: "Re-authenticate in Settings to restore sync",
+    urgency: "red" as const,
+    time: "2h ago",
+    icon: AlertTriangle,
   },
 ];
 
-const mockAlerts = [
-  {
-    id: "1",
-    icon: GitPullRequest,
-    color: "text-github",
-    title: "PR #248 assigned to you",
-    subtitle: "openclaw-gateway — fix: websocket reconnect logic",
-    time: "5m ago",
-    priority: "high" as const,
-  },
-  {
-    id: "2",
-    icon: Calendar,
-    color: "text-notion",
-    title: "Standup in 30 minutes",
-    subtitle: "Daily sync — Google Meet",
-    time: "in 30m",
-    priority: "medium" as const,
-  },
-  {
-    id: "3",
-    icon: AlertTriangle,
-    color: "text-alert",
-    title: "Notion sync failing",
-    subtitle: "OAuth token expired — re-authenticate in Settings",
-    time: "2h ago",
-    priority: "high" as const,
-  },
+const recentActivity = [
+  { icon: GitPullRequest, color: "text-github", text: "Reviewed PR #247 — auth middleware refactor", time: "2m" },
+  { icon: MessageSquare, color: "text-slack", text: "Summarized #eng-general (14 messages)", time: "8m" },
+  { icon: Brain, color: "text-emerald-400", text: "Updated memory: architecture decisions", time: "15m" },
+  { icon: Github, color: "text-github", text: "CI passed on atlas-console/main #389", time: "22m" },
+  { icon: MessageSquare, color: "text-indigo-400", text: "Responded to @sarah in #design-feedback", time: "34m" },
+  { icon: FileText, color: "text-notion", text: "Synced Sprint 12 task board from Notion", time: "41m" },
+  { icon: GitPullRequest, color: "text-github", text: "Drafted review for PR #245 — rate limiting", time: "1h" },
+  { icon: Brain, color: "text-emerald-400", text: "Indexed 3 new daily notes from journal", time: "1h" },
 ];
+
+const integrations = [
+  { name: "GitHub", status: "connected", icon: Github },
+  { name: "Discord", status: "connected", icon: MessageSquare },
+  { name: "Slack", status: "disconnected", icon: MessageSquare },
+  { name: "Notion", status: "degraded", icon: FileText },
+  { name: "Google", status: "connected", icon: Mail },
+];
+
+const quickActions = [
+  { label: "Ask Atlas", icon: Bot, route: "/chat" },
+  { label: "Review PRs", icon: GitPullRequest, route: "/activity" },
+  { label: "Check Slack", icon: MessageSquare, route: "/activity" },
+  { label: "Meeting Prep", icon: Calendar, route: "/chat" },
+];
+
+const urgencyBorder: Record<string, string> = {
+  red: "border-l-red-500",
+  yellow: "border-l-amber-400",
+  green: "border-l-emerald-500",
+};
+
+function integrationDotColor(status: string): string {
+  if (status === "connected") return "bg-emerald-500";
+  if (status === "degraded") return "bg-amber-500";
+  return "bg-red-500";
+}
+
+function Clock() {
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    const t = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <span className="font-mono text-xs text-muted-foreground tabular-nums">
+      {time.toLocaleTimeString("en-US", { hour12: false })}
+    </span>
+  );
+}
 
 export default function DashboardPage({ onNavigate }: DashboardProps) {
   const { status } = useGateway();
 
   return (
-    <div className="space-y-6">
-      {/* Status Bar */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <StatusDot status={status} />
-          <span className="text-sm font-mono text-muted-foreground capitalize">
-            Gateway {status}
+    <div className="space-y-4">
+      {/* === Top Status Strip === */}
+      <div className="flex items-center gap-4 px-1 py-1">
+        <div className="flex items-center gap-1.5">
+          <span
+            className={`h-2 w-2 rounded-full ${status === "connected" ? "bg-emerald-500" : status === "connecting" ? "bg-yellow-500 animate-pulse" : "bg-red-500"}`}
+          />
+          <span className="text-[11px] font-mono text-muted-foreground">
+            Gateway
           </span>
         </div>
-        <Badge variant="secondary" className="font-mono text-xs">
+        <Badge variant="secondary" className="font-mono text-[10px] px-2 py-0">
           Atlas: idle
         </Badge>
-        <div className="flex-1" />
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            <span className="text-[10px] font-mono text-muted-foreground">
-              GitHub
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            <span className="text-[10px] font-mono text-muted-foreground">
-              Discord
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-            <span className="text-[10px] font-mono text-muted-foreground">
-              Slack
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-            <span className="text-[10px] font-mono text-muted-foreground">
-              Notion
-            </span>
-          </div>
-        </div>
+        <Clock />
+        <span className="text-[10px] font-mono text-muted-foreground/50">
+          Uptime: 4d 7h 22m
+        </span>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-4 gap-4">
-        {[
-          {
-            label: "Messages Today",
-            value: "47",
-            change: "+12",
-            icon: MessageSquare,
-          },
-          {
-            label: "PRs Reviewed",
-            value: "6",
-            change: "+2",
-            icon: GitPullRequest,
-          },
-          {
-            label: "Memory Entries",
-            value: "284",
-            change: "+8",
-            icon: Brain,
-          },
-          {
-            label: "Active Integrations",
-            value: "3/5",
-            change: "",
-            icon: Zap,
-          },
-        ].map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <p className="text-2xl font-mono font-semibold">
-                      {stat.value}
-                    </p>
-                    {stat.change && (
-                      <span className="text-[10px] font-mono text-emerald-400">
-                        {stat.change}
-                      </span>
+      {/* === Main Grid: 60/40 === */}
+      <div className="grid grid-cols-[1fr_0.67fr] gap-4">
+        {/* ====== LEFT COLUMN ====== */}
+        <div className="space-y-4">
+          {/* Active Agents */}
+          <section>
+            <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
+              Active Agents
+            </h3>
+            <div className="flex gap-2">
+              {agentData.map((agent) => (
+                <button
+                  key={agent.id}
+                  onClick={() => onNavigate?.("/agents")}
+                  className="flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-border bg-card hover:border-muted-foreground/30 transition-colors text-left"
+                >
+                  <div
+                    className={`h-7 w-7 rounded-lg ${agent.color} flex items-center justify-center shrink-0`}
+                  >
+                    <span className="text-xs font-bold text-white">
+                      {agent.name[0]}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-medium">{agent.name}</span>
+                      <span
+                        className={`h-1.5 w-1.5 rounded-full ${agent.status === "active" ? "bg-emerald-500 status-pulse" : "bg-amber-500"}`}
+                      />
+                    </div>
+                    {agent.task ? (
+                      <p className="text-[10px] font-mono text-muted-foreground truncate">
+                        {agent.task}
+                      </p>
+                    ) : (
+                      <p className="text-[10px] font-mono text-muted-foreground/40">
+                        In development
+                      </p>
                     )}
                   </div>
-                </div>
-                <stat.icon className="h-5 w-5 text-muted-foreground/50" />
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                </button>
+              ))}
+            </div>
+          </section>
 
-      {/* Activity Feed + Alerts + Quick Actions */}
-      <div className="grid grid-cols-3 gap-4">
-        {/* Activity Feed */}
-        <Card className="col-span-2">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Activity className="h-4 w-4" />
-              Recent Activity
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-1">
-              {mockActivity.map((event) => (
+          {/* Priority Queue */}
+          <section>
+            <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
+              Priority Queue
+            </h3>
+            <div className="space-y-1.5">
+              {priorityQueue.map((item) => (
                 <div
-                  key={event.id}
-                  className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-accent/30 transition-colors"
+                  key={item.id}
+                  className={`flex items-start gap-3 px-3 py-2.5 rounded-lg border border-border bg-card border-l-2 ${urgencyBorder[item.urgency]}`}
                 >
-                  <event.icon className={`h-4 w-4 shrink-0 ${event.color}`} />
-                  <span className="text-sm truncate flex-1">
-                    {event.title}
+                  <item.icon className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{item.title}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {item.subtitle}
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0 mt-0.5">
+                    {item.time}
                   </span>
-                  <span className="text-[10px] font-mono text-muted-foreground shrink-0">
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Recent Activity */}
+          <section>
+            <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
+              Recent Activity
+            </h3>
+            <div className="space-y-0.5">
+              {recentActivity.map((event, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-md hover:bg-accent/30 transition-colors"
+                >
+                  <event.icon
+                    className={`h-3.5 w-3.5 shrink-0 ${event.color}`}
+                  />
+                  <span className="text-[13px] truncate flex-1">
+                    {event.text}
+                  </span>
+                  <span className="text-[10px] font-mono text-muted-foreground/50 shrink-0">
                     {event.time}
                   </span>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          </section>
+        </div>
 
-        {/* Right column: Alerts + Quick Actions */}
+        {/* ====== RIGHT COLUMN ====== */}
         <div className="space-y-4">
-          {/* Alerts */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Bell className="h-4 w-4 text-alert" />
-                Alerts
-                <Badge
-                  variant="secondary"
-                  className="text-[10px] bg-alert/15 text-alert"
-                >
-                  {mockAlerts.length}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {mockAlerts.map((alert) => (
-                <div
-                  key={alert.id}
-                  className="px-2 py-2 rounded-md hover:bg-accent/30 transition-colors"
-                >
-                  <div className="flex items-start gap-2">
-                    <alert.icon
-                      className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${alert.color}`}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {alert.title}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        {alert.subtitle}
-                      </p>
-                    </div>
-                    <span className="text-[10px] font-mono text-muted-foreground shrink-0">
-                      {alert.time}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Zap className="h-4 w-4" />
-                Quick Actions
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1">
-              {[
-                { label: "Ask Atlas", route: "/chat" },
-                { label: "Browse Memory", route: "/memory" },
-                { label: "View Activity", route: "/activity" },
-                { label: "Settings", route: "/settings" },
-              ].map((action) => (
+          {/* Quick Actions — 2x2 grid */}
+          <section>
+            <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
+              Quick Actions
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
+              {quickActions.map((action) => (
                 <button
                   key={action.label}
                   onClick={() => onNavigate?.(action.route)}
-                  className="w-full flex items-center justify-between px-3 py-2 rounded-md text-sm hover:bg-accent transition-colors text-left"
+                  className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-lg border border-border bg-card hover:border-muted-foreground/30 hover:shadow-[0_0_12px_rgba(255,255,255,0.03)] transition-all"
                 >
-                  {action.label}
-                  <ArrowRight className="h-3 w-3 text-muted-foreground" />
+                  <action.icon className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-xs font-medium">{action.label}</span>
                 </button>
               ))}
-            </CardContent>
-          </Card>
+            </div>
+          </section>
+
+          {/* Stats — compact horizontal bar */}
+          <section>
+            <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
+              Stats
+            </h3>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { label: "Messages", value: "47", icon: MessageSquare },
+                { label: "PRs Reviewed", value: "6", icon: GitPullRequest },
+                { label: "Memory", value: "284", icon: Brain },
+                { label: "Tokens", value: "232K", icon: Zap },
+              ].map((stat) => (
+                <div
+                  key={stat.label}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card"
+                >
+                  <stat.icon className="h-3.5 w-3.5 text-muted-foreground/50" />
+                  <span className="text-lg font-mono font-semibold">
+                    {stat.value}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/60">
+                    {stat.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Integration Status */}
+          <section>
+            <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
+              Integrations
+            </h3>
+            <div className="rounded-lg border border-border bg-card divide-y divide-border">
+              {integrations.map((int) => (
+                <div
+                  key={int.name}
+                  className="flex items-center gap-2.5 px-3 py-2"
+                >
+                  <int.icon className="h-3.5 w-3.5 text-muted-foreground/50" />
+                  <span className="text-sm flex-1">{int.name}</span>
+                  <span
+                    className={`h-2 w-2 rounded-full ${integrationDotColor(int.status)}`}
+                  />
+                  <span className="text-[10px] font-mono text-muted-foreground/50 w-20 text-right">
+                    {int.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </section>
         </div>
       </div>
     </div>

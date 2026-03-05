@@ -98,3 +98,13 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: oklch(0.4 0 0);
 }
+
+/* Status pulse for active agents */
+@keyframes status-glow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.4); }
+  50% { opacity: 0.8; box-shadow: 0 0 0 4px rgba(52, 211, 153, 0); }
+}
+
+.status-pulse {
+  animation: status-glow 2s ease-in-out infinite;
+}

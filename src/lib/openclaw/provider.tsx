@@ -184,11 +184,18 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
       client.request("channels.status", { probe: true }).then((res) => {
         const data = res as unknown as ChannelsStatusResult;
         if (data.channelAccounts) {
-          const accounts = Object.entries(data.channelAccounts).map(([id, acct]) => ({
-            ...acct,
-            accountId: acct.accountId || id,
-            label: acct.label || data.channelLabels?.[acct.channelType] || id,
-          }));
+          const accounts: ChannelAccount[] = [];
+          for (const [channelType, acctArray] of Object.entries(data.channelAccounts)) {
+            const arr = Array.isArray(acctArray) ? acctArray : [acctArray];
+            for (const acct of arr) {
+              accounts.push({
+                ...acct,
+                channelType,
+                accountId: acct.accountId || "default",
+                label: data.channelLabels?.[channelType] || channelType,
+              });
+            }
+          }
           setChannels(accounts);
         }
       }).catch(() => {});
@@ -289,11 +296,18 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
     clientRef.current?.request("channels.status", { probe: true }).then((res) => {
       const data = res as unknown as ChannelsStatusResult;
       if (data.channelAccounts) {
-        const accounts = Object.entries(data.channelAccounts).map(([id, acct]) => ({
-          ...acct,
-          accountId: acct.accountId || id,
-          label: acct.label || data.channelLabels?.[acct.channelType] || id,
-        }));
+        const accounts: ChannelAccount[] = [];
+        for (const [channelType, acctArray] of Object.entries(data.channelAccounts)) {
+          const arr = Array.isArray(acctArray) ? acctArray : [acctArray];
+          for (const acct of arr) {
+            accounts.push({
+              ...acct,
+              channelType,
+              accountId: acct.accountId || "default",
+              label: data.channelLabels?.[channelType] || channelType,
+            });
+          }
+        }
         setChannels(accounts);
       }
     }).catch(() => {});

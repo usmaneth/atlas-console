@@ -79,15 +79,18 @@ export default function SettingsPage() {
     if (channels.length > 0) {
       return channels.map((ch) => {
         const chType = ch.channelType?.toLowerCase() || "system";
-        const channelStatus = ch.connected ? (ch.running ? "connected" : "degraded") : "disconnected";
+        let derivedStatus = "disconnected";
+        if (ch.running && ch.configured) derivedStatus = "connected";
+        else if (ch.configured && !ch.running && ch.lastError) derivedStatus = "error";
+        else if (!ch.configured) derivedStatus = "not configured";
         return {
-          name: ch.label || ch.accountId,
+          name: ch.label || ch.channelType || ch.accountId,
           key: chType,
           icon: channelIcons[chType] || MessageSquare,
           color: channelColors[chType] || "text-muted-foreground",
-          status: channelStatus,
-          description: ch.lastError || `${chType} integration`,
-          enabled: ch.enabled,
+          status: derivedStatus,
+          description: ch.lastError || (ch.configured ? `${ch.label || chType} integration` : "Not configured yet"),
+          enabled: ch.enabled ?? false,
         };
       });
     }

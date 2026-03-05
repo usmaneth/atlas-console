@@ -102,11 +102,17 @@ export default function ActivityPage() {
 
   const channelList = useMemo(() => {
     if (channels.length > 0) {
-      return channels.map((ch) => ({
-        name: ch.label || ch.accountId,
-        status: ch.connected ? (ch.running ? "connected" : "degraded") : "disconnected",
-        type: ch.channelType?.toLowerCase() || "system",
-      }));
+      return channels.map((ch) => {
+        let derivedStatus = "disconnected";
+        if (ch.running && ch.configured) derivedStatus = "connected";
+        else if (ch.configured && !ch.running && ch.lastError) derivedStatus = "error";
+        else if (!ch.configured) derivedStatus = "not configured";
+        return {
+          name: ch.label || ch.channelType || ch.accountId,
+          status: derivedStatus,
+          type: ch.channelType?.toLowerCase() || "system",
+        };
+      });
     }
     if (config?.channels) {
       return Object.entries(config.channels as Record<string, Record<string, unknown>>).map(([key, ch]) => ({

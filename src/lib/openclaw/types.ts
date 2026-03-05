@@ -83,19 +83,34 @@ export interface GatewaySession {
 export interface ChannelAccount {
   channelType: string;
   accountId: string;
+  name?: string;
   label?: string;
-  connected: boolean;
-  running: boolean;
-  enabled: boolean;
-  lastError?: string;
+  configured?: boolean;
+  connected?: boolean;
+  running?: boolean;
+  enabled?: boolean;
+  lastError?: string | null;
+  lastConnectedAt?: number | null;
+  lastStartAt?: number | null;
+  lastInboundAt?: number | null;
+  lastOutboundAt?: number | null;
+  tokenSource?: string;
+  botTokenSource?: string;
+  appTokenSource?: string;
+  reconnectAttempts?: number;
+  application?: Record<string, unknown>;
+  bot?: { id?: string; username?: string };
   meta?: Record<string, unknown>;
 }
 
 export interface ChannelsStatusResult {
+  ts: number;
   channelOrder: string[];
   channelLabels: Record<string, string>;
-  channelAccounts: Record<string, ChannelAccount>;
-  channelMeta?: Record<string, Record<string, unknown>>;
+  channelDetailLabels?: Record<string, string>;
+  channelAccounts: Record<string, ChannelAccount[]>;
+  channelMeta?: { id: string; label: string; detailLabel: string; systemImage?: string }[];
+  channels?: Record<string, Record<string, unknown>>;
 }
 
 // --- Chat events ---

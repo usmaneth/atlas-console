@@ -3,9 +3,25 @@ export interface GatewayConfig {
   token?: string;
 }
 
-export interface GatewayMessagePayload {
-  type: string;
-  [key: string]: unknown;
+export type GatewayEventHandler = (message: Record<string, unknown>) => void;
+
+export interface GatewayStatus {
+  uptime?: number;
+  sessions?: number;
+  agents?: number;
+  version?: string;
 }
 
-export type GatewayEventHandler = (message: GatewayMessagePayload) => void;
+export interface GatewaySession {
+  id: string;
+  key: string;
+  agent?: string;
+  createdAt?: string;
+}
+
+export interface ChannelStatus {
+  name: string;
+  type: string;
+  status: "connected" | "disconnected" | "error";
+  lastSync?: string;
+}

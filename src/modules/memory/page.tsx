@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -14,9 +14,11 @@ import {
   Scale,
   User,
   Clock,
+  FileText,
+  Loader2,
 } from "lucide-react";
 
-type Category = "all" | "people" | "decisions" | "repos" | "ideas" | "roadmap" | "daily";
+type Category = "all" | "people" | "decisions" | "repos" | "ideas" | "roadmap" | "daily" | "other";
 
 interface MemoryEntry {
   id: string;
@@ -28,133 +30,84 @@ interface MemoryEntry {
   meta?: Record<string, string>;
 }
 
-const categoryConfig: Record<Exclude<Category, "all">, { label: string; icon: typeof Users; color: string }> = {
+const categoryConfig: Record<string, { label: string; icon: typeof Users; color: string }> = {
   people: { label: "People", icon: Users, color: "text-blue-400" },
   decisions: { label: "Decisions", icon: Scale, color: "text-amber-400" },
   repos: { label: "Repos", icon: GitFork, color: "text-github" },
   ideas: { label: "Ideas", icon: Lightbulb, color: "text-yellow-400" },
   roadmap: { label: "Roadmap", icon: Map, color: "text-purple-400" },
   daily: { label: "Daily Notes", icon: Calendar, color: "text-emerald-400" },
+  other: { label: "Other", icon: FileText, color: "text-muted-foreground" },
 };
 
-const mockEntries: MemoryEntry[] = [
-  {
-    id: "1",
-    category: "people",
-    title: "Usman Asim",
-    summary: "Founder & lead developer. Builds with Next.js, Tauri, TypeScript. Prefers dark themes, dense UIs. Working on Atlas — personal AI command center.",
-    tags: ["founder", "developer", "atlas"],
-    updatedAt: "2026-03-05",
-    meta: { role: "Founder", location: "Remote" },
-  },
-  {
-    id: "2",
-    category: "people",
-    title: "Sarah Chen",
-    summary: "Design advisor. Helped define the Arc-browser-inspired sidebar navigation and Bloomberg terminal density aesthetic.",
-    tags: ["design", "advisor", "ui"],
-    updatedAt: "2026-03-03",
-    meta: { role: "Design Advisor", location: "SF" },
-  },
-  {
-    id: "3",
-    category: "decisions",
-    title: "Use Tauri over Electron",
-    summary: "Decided on Tauri for the desktop shell — smaller binary, Rust backend, native webview. Trade-off: less mature ecosystem but worth the performance gains.",
-    tags: ["architecture", "desktop", "tauri"],
-    updatedAt: "2026-02-28",
-  },
-  {
-    id: "4",
-    category: "decisions",
-    title: "Module system over monolithic pages",
-    summary: "Each feature is a self-contained module with its own module.json manifest. Allows hot-loading and per-module enable/disable in the future.",
-    tags: ["architecture", "modules"],
-    updatedAt: "2026-02-25",
-  },
-  {
-    id: "5",
-    category: "decisions",
-    title: "WebSocket gateway for real-time sync",
-    summary: "All communication between Atlas agent and console flows through a single WebSocket. Supports multiplexed channels for chat, activity, and control signals.",
-    tags: ["gateway", "websocket", "real-time"],
-    updatedAt: "2026-02-20",
-  },
-  {
-    id: "6",
-    category: "repos",
-    title: "atlas-console",
-    summary: "Tauri + Next.js desktop app. The visual command center for Atlas. Modules: dashboard, chat, activity, memory, settings.",
-    tags: ["tauri", "nextjs", "desktop"],
-    updatedAt: "2026-03-05",
-    meta: { language: "TypeScript", stars: "—" },
-  },
-  {
-    id: "7",
-    category: "repos",
-    title: "openclaw-gateway",
-    summary: "WebSocket gateway server. Bridges Atlas agent with console and integrations. Handles auth, routing, and message multiplexing.",
-    tags: ["gateway", "websocket", "rust"],
-    updatedAt: "2026-03-01",
-    meta: { language: "Rust", stars: "—" },
-  },
-  {
-    id: "8",
-    category: "ideas",
-    title: "Voice input for chat",
-    summary: "Add Whisper-powered voice transcription to the chat input. Hold spacebar to talk, release to send. Would make Atlas feel more like Jarvis.",
-    tags: ["voice", "whisper", "chat"],
-    updatedAt: "2026-03-04",
-  },
-  {
-    id: "9",
-    category: "ideas",
-    title: "Canvas mode for memory",
-    summary: "Spatial canvas view where memory entries are nodes you can arrange, connect, and cluster. Think Obsidian graph view but interactive.",
-    tags: ["canvas", "memory", "graph"],
-    updatedAt: "2026-03-02",
-  },
-  {
-    id: "10",
-    category: "ideas",
-    title: "Ambient awareness dashboard",
-    summary: "Dashboard widget that shows what Atlas is passively monitoring — new PRs, Slack mentions, calendar events — without being explicitly asked.",
-    tags: ["dashboard", "ambient", "monitoring"],
-    updatedAt: "2026-03-01",
-  },
-  {
-    id: "11",
-    category: "roadmap",
-    title: "Phase 5: Integration connectors",
-    summary: "Build real connectors for GitHub, Slack, Notion, Google Calendar. Each connector runs as a gateway plugin with OAuth flow.",
-    tags: ["integrations", "oauth", "phase-5"],
-    updatedAt: "2026-03-05",
-  },
-  {
-    id: "12",
-    category: "roadmap",
-    title: "Phase 6: Agent autonomy",
-    summary: "Let Atlas run background tasks — monitor repos, summarize Slack, draft PR reviews. Requires task queue and approval workflow.",
-    tags: ["autonomy", "agent", "phase-6"],
-    updatedAt: "2026-03-05",
-  },
-  {
-    id: "13",
-    category: "daily",
-    title: "2026-03-05",
-    summary: "Building Phase 4 of Atlas Console. All 5 modules getting fully functional. Chat has markdown + syntax highlighting now. Memory browser taking shape.",
-    tags: ["build", "phase-4"],
-    updatedAt: "2026-03-05",
-  },
-  {
-    id: "14",
-    category: "daily",
-    title: "2026-03-04",
-    summary: "Finished Phase 3 — gateway client, WebSocket hooks, provider context. All real-time plumbing in place. Ready for UI buildout.",
-    tags: ["gateway", "phase-3"],
-    updatedAt: "2026-03-04",
-  },
-];
+function categorizeFile(name: string): Category {
+  if (name === "people.md") return "people";
+  if (name === "repos.md") return "repos";
+  if (name === "ideas.md") return "ideas";
+  if (name === "roadmap.md") return "roadmap";
+  if (/^\d{4}-\d{2}-\d{2}\.md$/.test(name)) return "daily";
+  if (name.includes("decision") || name.includes("plan") || name.includes("action")) return "decisions";
+  return "other";
+}
+
+function parseMemoryFile(name: string, content: string, modified: string): MemoryEntry[] {
+  const category = categorizeFile(name);
+  const title = name.replace(/\.md$/, "");
+
+  // For people.md, try to split by ## headings into individual entries
+  if (category === "people") {
+    const sections = content.split(/^## /m).filter(Boolean);
+    if (sections.length > 1) {
+      return sections.slice(0).map((section, i) => {
+        const lines = section.trim().split("\n");
+        const personName = lines[0]?.replace(/^#+\s*/, "").trim() || `Person ${i + 1}`;
+        const summary = lines.slice(1).join(" ").trim().slice(0, 300);
+        return {
+          id: `${name}-${i}`,
+          category: "people",
+          title: personName,
+          summary: summary || "No details available",
+          tags: extractTags(section),
+          updatedAt: modified.split("T")[0] || "",
+        };
+      });
+    }
+  }
+
+  // For daily notes, use the date as title
+  if (category === "daily") {
+    const summary = content.split("\n").filter((l) => l.trim() && !l.startsWith("#")).slice(0, 3).join(" ").slice(0, 300);
+    return [{
+      id: name,
+      category: "daily",
+      title,
+      summary: summary || "Daily note",
+      tags: extractTags(content),
+      updatedAt: modified.split("T")[0] || "",
+    }];
+  }
+
+  // Default: one entry per file
+  const firstLines = content.split("\n").filter((l) => l.trim() && !l.startsWith("#")).slice(0, 4).join(" ").slice(0, 300);
+  return [{
+    id: name,
+    category,
+    title: content.match(/^#\s+(.+)/m)?.[1] || title,
+    summary: firstLines || "No content",
+    tags: extractTags(content),
+    updatedAt: modified.split("T")[0] || "",
+  }];
+}
+
+function extractTags(text: string): string[] {
+  const tags = new Set<string>();
+  const words = text.toLowerCase();
+  const tagKeywords = ["atlas", "openclaw", "github", "discord", "slack", "notion", "tauri", "nextjs", "agent", "gateway", "zetachain"];
+  for (const kw of tagKeywords) {
+    if (words.includes(kw)) tags.add(kw);
+  }
+  return [...tags].slice(0, 5);
+}
 
 function PersonCard({ entry }: { entry: MemoryEntry }) {
   return (
@@ -168,22 +121,13 @@ function PersonCard({ entry }: { entry: MemoryEntry }) {
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-semibold">{entry.title}</h3>
               {entry.meta?.role && (
-                <Badge variant="secondary" className="text-[10px]">
-                  {entry.meta.role}
-                </Badge>
+                <Badge variant="secondary" className="text-[10px]">{entry.meta.role}</Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              {entry.summary}
-            </p>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{entry.summary}</p>
             <div className="flex items-center gap-2 mt-2">
               {entry.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-[10px] font-mono text-muted-foreground/60 bg-secondary px-1.5 py-0.5 rounded"
-                >
-                  {tag}
-                </span>
+                <span key={tag} className="text-[10px] font-mono text-muted-foreground/60 bg-secondary px-1.5 py-0.5 rounded">{tag}</span>
               ))}
             </div>
           </div>
@@ -204,21 +148,12 @@ function DecisionCard({ entry }: { entry: MemoryEntry }) {
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-semibold">{entry.title}</h3>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              {entry.summary}
-            </p>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{entry.summary}</p>
             <div className="flex items-center gap-3 mt-2">
-              <span className="text-[10px] font-mono text-muted-foreground/50">
-                {entry.updatedAt}
-              </span>
+              <span className="text-[10px] font-mono text-muted-foreground/50">{entry.updatedAt}</span>
               <div className="flex gap-1">
                 {entry.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="text-[10px] font-mono text-muted-foreground/60 bg-secondary px-1.5 py-0.5 rounded"
-                  >
-                    {tag}
-                  </span>
+                  <span key={tag} className="text-[10px] font-mono text-muted-foreground/60 bg-secondary px-1.5 py-0.5 rounded">{tag}</span>
                 ))}
               </div>
             </div>
@@ -230,8 +165,8 @@ function DecisionCard({ entry }: { entry: MemoryEntry }) {
 }
 
 function DefaultCard({ entry }: { entry: MemoryEntry }) {
-  const config = categoryConfig[entry.category as Exclude<Category, "all">];
-  const Icon = config?.icon ?? Lightbulb;
+  const config = categoryConfig[entry.category];
+  const Icon = config?.icon ?? FileText;
   const color = config?.color ?? "text-muted-foreground";
 
   return (
@@ -242,21 +177,12 @@ function DefaultCard({ entry }: { entry: MemoryEntry }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold">{entry.title}</h3>
-              <span className="text-[10px] font-mono text-muted-foreground/50">
-                {entry.updatedAt}
-              </span>
+              <span className="text-[10px] font-mono text-muted-foreground/50">{entry.updatedAt}</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              {entry.summary}
-            </p>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{entry.summary}</p>
             <div className="flex gap-1 mt-2">
               {entry.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-[10px] font-mono text-muted-foreground/60 bg-secondary px-1.5 py-0.5 rounded"
-                >
-                  {tag}
-                </span>
+                <span key={tag} className="text-[10px] font-mono text-muted-foreground/60 bg-secondary px-1.5 py-0.5 rounded">{tag}</span>
               ))}
             </div>
           </div>
@@ -269,23 +195,74 @@ function DefaultCard({ entry }: { entry: MemoryEntry }) {
 export default function MemoryPage() {
   const [activeCategory, setActiveCategory] = useState<Category>("all");
   const [search, setSearch] = useState("");
+  const [entries, setEntries] = useState<MemoryEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        setLoading(true);
+        // Fetch file list
+        const listRes = await fetch("/api/memory");
+        const listData = await listRes.json();
+        if (!listData.files?.length) {
+          setEntries([]);
+          setLoading(false);
+          return;
+        }
+
+        // Fetch each file's content
+        const allEntries: MemoryEntry[] = [];
+        await Promise.all(
+          listData.files.map(async (file: { name: string; modified: string }) => {
+            try {
+              const res = await fetch(`/api/memory/${encodeURIComponent(file.name)}`);
+              const data = await res.json();
+              if (data.content) {
+                const parsed = parseMemoryFile(file.name, data.content, file.modified);
+                allEntries.push(...parsed);
+              }
+            } catch {
+              // skip failed files
+            }
+          })
+        );
+        setEntries(allEntries);
+      } catch (e) {
+        setError("Failed to load memory files");
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
 
   const filtered = useMemo(() => {
-    let entries = mockEntries;
+    let result = entries;
     if (activeCategory !== "all") {
-      entries = entries.filter((e) => e.category === activeCategory);
+      result = result.filter((e) => e.category === activeCategory);
     }
     if (search) {
       const q = search.toLowerCase();
-      entries = entries.filter(
+      result = result.filter(
         (e) =>
           e.title.toLowerCase().includes(q) ||
           e.summary.toLowerCase().includes(q) ||
           e.tags.some((t) => t.includes(q))
       );
     }
-    return entries;
-  }, [activeCategory, search]);
+    return result;
+  }, [entries, activeCategory, search]);
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const e of entries) {
+      counts[e.category] = (counts[e.category] || 0) + 1;
+    }
+    return counts;
+  }, [entries]);
 
   return (
     <div className="flex h-[calc(100vh-5rem)]">
@@ -301,37 +278,31 @@ export default function MemoryPage() {
         >
           <Clock className="h-4 w-4" />
           All Entries
-          <span className="ml-auto text-[10px] font-mono text-muted-foreground">
-            {mockEntries.length}
-          </span>
+          <span className="ml-auto text-[10px] font-mono text-muted-foreground">{entries.length}</span>
         </button>
-        {(Object.entries(categoryConfig) as [Exclude<Category, "all">, typeof categoryConfig[keyof typeof categoryConfig]][]).map(
-          ([key, { label, icon: Icon, color }]) => {
-            const count = mockEntries.filter((e) => e.category === key).length;
-            return (
-              <button
-                key={key}
-                onClick={() => setActiveCategory(key)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left ${
-                  activeCategory === key
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                }`}
-              >
-                <Icon className={`h-4 w-4 ${color}`} />
-                {label}
-                <span className="ml-auto text-[10px] font-mono text-muted-foreground">
-                  {count}
-                </span>
-              </button>
-            );
-          }
-        )}
+        {Object.entries(categoryConfig).map(([key, { label, icon: Icon, color }]) => {
+          const count = categoryCounts[key] || 0;
+          if (count === 0) return null;
+          return (
+            <button
+              key={key}
+              onClick={() => setActiveCategory(key as Category)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+                activeCategory === key
+                  ? "bg-accent text-accent-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+              }`}
+            >
+              <Icon className={`h-4 w-4 ${color}`} />
+              {label}
+              <span className="ml-auto text-[10px] font-mono text-muted-foreground">{count}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Main content */}
       <div className="flex-1 pl-6 flex flex-col">
-        {/* Search */}
         <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
@@ -343,30 +314,38 @@ export default function MemoryPage() {
           />
         </div>
 
-        {/* Results header */}
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs text-muted-foreground">
             {filtered.length} {filtered.length === 1 ? "entry" : "entries"}
-            {activeCategory !== "all" &&
-              ` in ${categoryConfig[activeCategory as Exclude<Category, "all">]?.label}`}
+            {activeCategory !== "all" && ` in ${categoryConfig[activeCategory]?.label}`}
           </span>
         </div>
 
-        {/* Entries */}
         <ScrollArea className="flex-1">
-          <div className="space-y-3 pr-2">
-            {filtered.map((entry) => {
-              if (entry.category === "people") return <PersonCard key={entry.id} entry={entry} />;
-              if (entry.category === "decisions") return <DecisionCard key={entry.id} entry={entry} />;
-              return <DefaultCard key={entry.id} entry={entry} />;
-            })}
-            {filtered.length === 0 && (
-              <div className="flex flex-col items-center py-16 text-muted-foreground">
-                <Search className="h-8 w-8 mb-3 opacity-30" />
-                <p className="text-sm">No entries found</p>
-              </div>
-            )}
-          </div>
+          {loading ? (
+            <div className="flex flex-col items-center py-16 text-muted-foreground">
+              <Loader2 className="h-8 w-8 mb-3 animate-spin opacity-40" />
+              <p className="text-sm">Loading memory files...</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center py-16 text-red-400">
+              <p className="text-sm">{error}</p>
+            </div>
+          ) : (
+            <div className="space-y-3 pr-2">
+              {filtered.map((entry) => {
+                if (entry.category === "people") return <PersonCard key={entry.id} entry={entry} />;
+                if (entry.category === "decisions") return <DecisionCard key={entry.id} entry={entry} />;
+                return <DefaultCard key={entry.id} entry={entry} />;
+              })}
+              {filtered.length === 0 && (
+                <div className="flex flex-col items-center py-16 text-muted-foreground">
+                  <Search className="h-8 w-8 mb-3 opacity-30" />
+                  <p className="text-sm">No entries found</p>
+                </div>
+              )}
+            </div>
+          )}
         </ScrollArea>
       </div>
     </div>

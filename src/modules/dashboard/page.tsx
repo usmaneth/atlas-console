@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useGateway } from "@/lib/openclaw/hooks";
+import { useState, useEffect, useMemo } from "react";
+import { useGateway, useActivity } from "@/lib/openclaw/hooks";
+import { useSessions, useChannels } from "@/lib/openclaw/hooks";
 import { Badge } from "@/components/ui/badge";
 import {
   GitPullRequest,
@@ -14,91 +15,12 @@ import {
   Calendar,
   AlertTriangle,
   Bot,
+  Loader2,
 } from "lucide-react";
 
 interface DashboardProps {
   onNavigate?: (route: string) => void;
 }
-
-// --- Mock data ---
-
-const agentData = [
-  {
-    id: "atlas",
-    name: "Atlas",
-    color: "bg-emerald-500",
-    status: "active" as const,
-    task: "Reviewing PR #248",
-  },
-  {
-    id: "duke",
-    name: "Duke",
-    color: "bg-violet-500",
-    status: "active" as const,
-    task: "Dark mode toggle — ai-portal",
-  },
-  {
-    id: "anuma",
-    name: "Anuma",
-    color: "bg-amber-500",
-    status: "in-dev" as const,
-    task: null,
-  },
-];
-
-const priorityQueue = [
-  {
-    id: "1",
-    title: "PR #248 needs your review",
-    subtitle: "openclaw-gateway — websocket reconnect logic",
-    urgency: "red" as const,
-    time: "5m ago",
-    icon: GitPullRequest,
-  },
-  {
-    id: "2",
-    title: "3 unread threads in #eng-general",
-    subtitle: "Slack — architecture discussion, deploy blockers",
-    urgency: "yellow" as const,
-    time: "12m ago",
-    icon: MessageSquare,
-  },
-  {
-    id: "3",
-    title: "Standup in 25 minutes",
-    subtitle: "Daily sync — Google Meet",
-    urgency: "yellow" as const,
-    time: "in 25m",
-    icon: Calendar,
-  },
-  {
-    id: "4",
-    title: "Notion OAuth token expired",
-    subtitle: "Re-authenticate in Settings to restore sync",
-    urgency: "red" as const,
-    time: "2h ago",
-    icon: AlertTriangle,
-  },
-];
-
-const recentActivity = [
-  { icon: GitPullRequest, color: "text-github", text: "Reviewed PR #247 — auth middleware refactor", time: "2m" },
-  { icon: MessageSquare, color: "text-slack", text: "Summarized #eng-general (14 messages)", time: "8m" },
-  { icon: Brain, color: "text-emerald-400", text: "Updated memory: architecture decisions", time: "15m" },
-  { icon: Github, color: "text-github", text: "CI passed on atlas-console/main #389", time: "22m" },
-  { icon: MessageSquare, color: "text-indigo-400", text: "Responded to @sarah in #design-feedback", time: "34m" },
-  { icon: FileText, color: "text-notion", text: "Synced Sprint 12 task board from Notion", time: "41m" },
-  { icon: GitPullRequest, color: "text-github", text: "Drafted review for PR #245 — rate limiting", time: "1h" },
-  { icon: Brain, color: "text-emerald-400", text: "Indexed 3 new daily notes from journal", time: "1h" },
-];
-
-const integrations = [
-  { name: "GitHub", status: "connected", icon: Github },
-  { name: "Discord", status: "connected", icon: MessageSquare },
-  { name: "Slack", status: "disconnected", icon: MessageSquare },
-  { name: "Notion", status: "degraded", icon: FileText },
-  { name: "Google", status: "connected", icon: Mail },
-];
 
 const quickActions = [
   { label: "Ask Atlas", icon: Bot, route: "/chat" },
@@ -107,19 +29,21 @@ const quickActions = [
   { label: "Meeting Prep", icon: Calendar, route: "/chat" },
 ];
 
-const urgencyBorder: Record<string, string> = {
-  red: "border-l-red-500",
-  yellow: "border-l-amber-400",
-  green: "border-l-emerald-500",
+const integrationIcons: Record<string, typeof Github> = {
+  github: Github,
+  discord: MessageSquare,
+  slack: MessageSquare,
+  notion: FileText,
+  google: Mail,
 };
 
 function integrationDotColor(status: string): string {
   if (status === "connected") return "bg-emerald-500";
-  if (status === "degraded") return "bg-amber-500";
+  if (status === "degraded" || status === "error") return "bg-amber-500";
   return "bg-red-500";
 }
 
-function Clock() {
+function DashboardClock() {
   const [time, setTime] = useState(new Date());
   useEffect(() => {
     const t = setInterval(() => setTime(new Date()), 1000);
@@ -132,100 +56,145 @@ function Clock() {
   );
 }
 
+function formatUptime(seconds: number | undefined): string {
+  if (!seconds) return "—";
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return `${d}d ${h}h ${m}m`;
+}
+
 export default function DashboardPage({ onNavigate }: DashboardProps) {
-  const { status } = useGateway();
+  const { status, gatewayInfo } = useGateway();
+  const { events: activityEvents } = useActivity();
+  const { sessions } = useSessions();
+  const { channels } = useChannels();
+  const [config, setConfig] = useState<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    fetch("/api/config").then((r) => r.json()).then(setConfig).catch(() => {});
+  }, []);
+
+  const agents = useMemo(() => {
+    const list = (config?.agents as Record<string, unknown>)?.list as Record<string, unknown>[] | undefined;
+    return list ?? [];
+  }, [config]);
+
+  const recentActivity = activityEvents.slice(0, 8);
+
+  const channelList = useMemo(() => {
+    if (channels.length > 0) {
+      return channels.map((ch) => ({
+        name: ch.name,
+        status: ch.status,
+        icon: integrationIcons[ch.type?.toLowerCase()] || MessageSquare,
+      }));
+    }
+    // Fallback: derive from config channels
+    if (config?.channels) {
+      return Object.entries(config.channels as Record<string, Record<string, unknown>>).map(([key, ch]) => ({
+        name: key.charAt(0).toUpperCase() + key.slice(1),
+        status: ch.enabled ? "connected" : "disconnected",
+        icon: integrationIcons[key.toLowerCase()] || MessageSquare,
+      }));
+    }
+    return [];
+  }, [channels, config]);
 
   return (
     <div className="space-y-4">
-      {/* === Top Status Strip === */}
+      {/* Top Status Strip */}
       <div className="flex items-center gap-4 px-1 py-1">
         <div className="flex items-center gap-1.5">
           <span
             className={`h-2 w-2 rounded-full ${status === "connected" ? "bg-emerald-500" : status === "connecting" ? "bg-yellow-500 animate-pulse" : "bg-red-500"}`}
           />
-          <span className="text-[11px] font-mono text-muted-foreground">
-            Gateway
-          </span>
+          <span className="text-[11px] font-mono text-muted-foreground">Gateway</span>
         </div>
         <Badge variant="secondary" className="font-mono text-[10px] px-2 py-0">
-          Atlas: idle
+          Sessions: {sessions.length}
         </Badge>
-        <Clock />
+        <DashboardClock />
         <span className="text-[10px] font-mono text-muted-foreground/50">
-          Uptime: 4d 7h 22m
+          Uptime: {formatUptime(gatewayInfo?.uptime)}
         </span>
       </div>
 
-      {/* === Main Grid: 60/40 === */}
+      {/* Main Grid: 60/40 */}
       <div className="grid grid-cols-[1fr_0.67fr] gap-4">
-        {/* ====== LEFT COLUMN ====== */}
+        {/* LEFT COLUMN */}
         <div className="space-y-4">
           {/* Active Agents */}
           <section>
             <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
-              Active Agents
+              Agents ({agents.length})
             </h3>
             <div className="flex gap-2">
-              {agentData.map((agent) => (
-                <button
-                  key={agent.id}
-                  onClick={() => onNavigate?.("/agents")}
-                  className="flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-border bg-card hover:border-muted-foreground/30 transition-colors text-left"
-                >
-                  <div
-                    className={`h-7 w-7 rounded-lg ${agent.color} flex items-center justify-center shrink-0`}
-                  >
-                    <span className="text-xs font-bold text-white">
-                      {agent.name[0]}
-                    </span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-medium">{agent.name}</span>
-                      <span
-                        className={`h-1.5 w-1.5 rounded-full ${agent.status === "active" ? "bg-emerald-500 status-pulse" : "bg-amber-500"}`}
-                      />
-                    </div>
-                    {agent.task ? (
-                      <p className="text-[10px] font-mono text-muted-foreground truncate">
-                        {agent.task}
-                      </p>
-                    ) : (
-                      <p className="text-[10px] font-mono text-muted-foreground/40">
-                        In development
-                      </p>
-                    )}
-                  </div>
-                </button>
-              ))}
+              {agents.length > 0 ? (
+                agents.slice(0, 4).map((agent) => {
+                  const name = (agent.name as string) || (agent.id as string) || "Unknown";
+                  const colors = ["bg-emerald-500", "bg-violet-500", "bg-amber-500", "bg-blue-500"];
+                  const colorIdx = name.charCodeAt(0) % colors.length;
+                  return (
+                    <button
+                      key={agent.id as string}
+                      onClick={() => onNavigate?.("/agents")}
+                      className="flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-border bg-card hover:border-muted-foreground/30 transition-colors text-left"
+                    >
+                      <div className={`h-7 w-7 rounded-lg ${colors[colorIdx]} flex items-center justify-center shrink-0`}>
+                        <span className="text-xs font-bold text-white">{name[0]?.toUpperCase()}</span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-medium">{name}</span>
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 status-pulse" />
+                        </div>
+                        <p className="text-[10px] font-mono text-muted-foreground truncate">
+                          {(agent.model as string)?.split("/").pop() || "—"}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-2.5 text-muted-foreground/50 text-sm">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading agents...
+                </div>
+              )}
             </div>
           </section>
 
-          {/* Priority Queue */}
-          <section>
-            <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
-              Priority Queue
-            </h3>
-            <div className="space-y-1.5">
-              {priorityQueue.map((item) => (
-                <div
-                  key={item.id}
-                  className={`flex items-start gap-3 px-3 py-2.5 rounded-lg border border-border bg-card border-l-2 ${urgencyBorder[item.urgency]}`}
-                >
-                  <item.icon className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{item.title}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {item.subtitle}
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0 mt-0.5">
-                    {item.time}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
+          {/* Priority Queue / Alerts */}
+          {activityEvents.filter((e) => e.type === "alert").length > 0 && (
+            <section>
+              <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
+                Alerts
+              </h3>
+              <div className="space-y-1.5">
+                {activityEvents
+                  .filter((e) => e.type === "alert")
+                  .slice(0, 4)
+                  .map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-start gap-3 px-3 py-2.5 rounded-lg border border-border bg-card border-l-2 border-l-red-500"
+                    >
+                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-red-400" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">{item.title}</p>
+                        {item.description && (
+                          <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0 mt-0.5">
+                        {item.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </section>
+          )}
 
           {/* Recent Activity */}
           <section>
@@ -233,29 +202,48 @@ export default function DashboardPage({ onNavigate }: DashboardProps) {
               Recent Activity
             </h3>
             <div className="space-y-0.5">
-              {recentActivity.map((event, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-md hover:bg-accent/30 transition-colors"
-                >
-                  <event.icon
-                    className={`h-3.5 w-3.5 shrink-0 ${event.color}`}
-                  />
-                  <span className="text-[13px] truncate flex-1">
-                    {event.text}
-                  </span>
-                  <span className="text-[10px] font-mono text-muted-foreground/50 shrink-0">
-                    {event.time}
-                  </span>
+              {recentActivity.length > 0 ? (
+                recentActivity.map((event) => {
+                  const iconMap: Record<string, typeof Github> = {
+                    github: Github,
+                    slack: MessageSquare,
+                    discord: MessageSquare,
+                    notion: FileText,
+                    system: Brain,
+                  };
+                  const Icon = iconMap[event.integration] || Zap;
+                  const colorMap: Record<string, string> = {
+                    github: "text-github",
+                    slack: "text-slack",
+                    discord: "text-indigo-400",
+                    notion: "text-notion",
+                    system: "text-emerald-400",
+                  };
+                  return (
+                    <div
+                      key={event.id}
+                      className="flex items-center gap-2.5 px-3 py-1.5 rounded-md hover:bg-accent/30 transition-colors"
+                    >
+                      <Icon className={`h-3.5 w-3.5 shrink-0 ${colorMap[event.integration] || "text-muted-foreground"}`} />
+                      <span className="text-[13px] truncate flex-1">{event.title}</span>
+                      <span className="text-[10px] font-mono text-muted-foreground/50 shrink-0">
+                        {event.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="px-3 py-4 text-sm text-muted-foreground/50">
+                  {status === "connected" ? "No activity yet — events will appear as they happen." : "Connect to gateway to see activity."}
                 </div>
-              ))}
+              )}
             </div>
           </section>
         </div>
 
-        {/* ====== RIGHT COLUMN ====== */}
+        {/* RIGHT COLUMN */}
         <div className="space-y-4">
-          {/* Quick Actions — 2x2 grid */}
+          {/* Quick Actions */}
           <section>
             <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
               Quick Actions
@@ -274,29 +262,22 @@ export default function DashboardPage({ onNavigate }: DashboardProps) {
             </div>
           </section>
 
-          {/* Stats — compact horizontal bar */}
+          {/* Stats */}
           <section>
             <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
               Stats
             </h3>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { label: "Messages", value: "47", icon: MessageSquare },
-                { label: "PRs Reviewed", value: "6", icon: GitPullRequest },
-                { label: "Memory", value: "284", icon: Brain },
-                { label: "Tokens", value: "232K", icon: Zap },
+                { label: "Messages", value: String(activityEvents.filter((e) => e.integration !== "system").length), icon: MessageSquare },
+                { label: "Sessions", value: String(sessions.length), icon: GitPullRequest },
+                { label: "Agents", value: String(agents.length), icon: Brain },
+                { label: "Channels", value: String(channelList.length), icon: Zap },
               ].map((stat) => (
-                <div
-                  key={stat.label}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card"
-                >
+                <div key={stat.label} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card">
                   <stat.icon className="h-3.5 w-3.5 text-muted-foreground/50" />
-                  <span className="text-lg font-mono font-semibold">
-                    {stat.value}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground/60">
-                    {stat.label}
-                  </span>
+                  <span className="text-lg font-mono font-semibold">{stat.value}</span>
+                  <span className="text-[10px] text-muted-foreground/60">{stat.label}</span>
                 </div>
               ))}
             </div>
@@ -308,21 +289,22 @@ export default function DashboardPage({ onNavigate }: DashboardProps) {
               Integrations
             </h3>
             <div className="rounded-lg border border-border bg-card divide-y divide-border">
-              {integrations.map((int) => (
-                <div
-                  key={int.name}
-                  className="flex items-center gap-2.5 px-3 py-2"
-                >
-                  <int.icon className="h-3.5 w-3.5 text-muted-foreground/50" />
-                  <span className="text-sm flex-1">{int.name}</span>
-                  <span
-                    className={`h-2 w-2 rounded-full ${integrationDotColor(int.status)}`}
-                  />
-                  <span className="text-[10px] font-mono text-muted-foreground/50 w-20 text-right">
-                    {int.status}
-                  </span>
+              {channelList.length > 0 ? (
+                channelList.map((int) => (
+                  <div key={int.name} className="flex items-center gap-2.5 px-3 py-2">
+                    <int.icon className="h-3.5 w-3.5 text-muted-foreground/50" />
+                    <span className="text-sm flex-1">{int.name}</span>
+                    <span className={`h-2 w-2 rounded-full ${integrationDotColor(int.status as string)}`} />
+                    <span className="text-[10px] font-mono text-muted-foreground/50 w-20 text-right">
+                      {int.status as string}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div className="px-3 py-3 text-sm text-muted-foreground/50">
+                  {status === "connected" ? "No integrations configured" : "Connecting..."}
                 </div>
-              ))}
+              )}
             </div>
           </section>
         </div>

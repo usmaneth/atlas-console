@@ -6,6 +6,7 @@ import { useSessions, useChannels } from "@/lib/openclaw/hooks";
 import { Badge } from "@/components/ui/badge";
 import {
   GitPullRequest,
+  GitCommit,
   Brain,
   MessageSquare,
   Github,
@@ -16,10 +17,67 @@ import {
   AlertTriangle,
   Bot,
   Loader2,
+  ExternalLink,
+  Lock,
+  Globe,
 } from "lucide-react";
 
 interface DashboardProps {
   onNavigate?: (route: string) => void;
+}
+
+interface GitHubPR {
+  title: string;
+  state: string;
+  url: string;
+  repo: string;
+  repoName: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+interface GitHubCommit {
+  sha: string;
+  message: string;
+  date: string;
+  url: string;
+  author: string;
+}
+
+interface GitHubRepo {
+  name: string;
+  pushedAt: string;
+  defaultBranch: string;
+  description: string | null;
+  isPrivate: boolean;
+  url: string | null;
+}
+
+interface GitHubData {
+  user: string;
+  authenticated: boolean;
+  prs: GitHubPR[];
+  repos: GitHubRepo[];
+  commits: GitHubCommit[];
+  fetchedAt: string;
+  error?: string;
+}
+
+function prStateBadge(state: string) {
+  if (state === "open") return "bg-emerald-500/15 text-emerald-400 border-emerald-500/20";
+  if (state === "merged") return "bg-violet-500/15 text-violet-400 border-violet-500/20";
+  if (state === "closed") return "bg-red-500/15 text-red-400 border-red-500/20";
+  return "bg-muted text-muted-foreground";
+}
+
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
 }
 
 const quickActions = [
@@ -71,9 +129,16 @@ export default function DashboardPage({ onNavigate }: DashboardProps) {
   const { sessions } = useSessions();
   const { channels } = useChannels();
   const [config, setConfig] = useState<Record<string, unknown> | null>(null);
+  const [github, setGithub] = useState<GitHubData | null>(null);
+  const [githubLoading, setGithubLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/config").then((r) => r.json()).then(setConfig).catch(() => {});
+    fetch("/api/github")
+      .then((r) => r.json())
+      .then((d: GitHubData) => setGithub(d))
+      .catch(() => {})
+      .finally(() => setGithubLoading(false));
   }, []);
 
   const agents = useMemo(() => {
@@ -105,10 +170,35 @@ export default function DashboardPage({ onNavigate }: DashboardProps) {
         name: key.charAt(0).toUpperCase() + key.slice(1),
         status: ch.enabled ? "connected" : "disconnected",
         icon: integrationIcons[key.toLowerCase()] || MessageSquare,
+        detail: undefined as string | undefined,
+        channelType: key,
       }));
     }
-    return [];
+    return [] as { name: string; status: string; icon: typeof Github; detail?: string; channelType?: string }[];
   }, [channels, config]);
+
+  // Add GitHub to integrations list
+  const allIntegrations = useMemo(() => {
+    const list = [...channelList];
+    if (github) {
+      list.push({
+        name: "GitHub",
+        status: github.authenticated ? "connected" : "error",
+        icon: Github,
+        detail: github.authenticated ? `@${github.user}` : (github.error || "not authenticated"),
+        channelType: "github",
+      });
+    } else if (githubLoading) {
+      list.push({
+        name: "GitHub",
+        status: "connecting",
+        icon: Github,
+        detail: undefined,
+        channelType: "github",
+      });
+    }
+    return list;
+  }, [channelList, github, githubLoading]);
 
   return (
     <div className="space-y-4">
@@ -248,6 +338,119 @@ export default function DashboardPage({ onNavigate }: DashboardProps) {
               )}
             </div>
           </section>
+          {/* GitHub Activity */}
+          <section>
+            <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
+              GitHub
+            </h3>
+            {githubLoading ? (
+              <div className="flex items-center gap-2 px-3 py-4 text-muted-foreground/50 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading GitHub data...
+              </div>
+            ) : github?.authenticated ? (
+              <div className="space-y-3">
+                {/* Recent PRs */}
+                {github.prs.length > 0 && (
+                  <div className="rounded-lg border border-border bg-card">
+                    <div className="px-3 py-1.5 border-b border-border">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
+                        Pull Requests
+                      </span>
+                    </div>
+                    <div className="divide-y divide-border">
+                      {github.prs.slice(0, 5).map((pr, i) => (
+                        <a
+                          key={i}
+                          href={pr.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-start gap-2.5 px-3 py-2 hover:bg-accent/30 transition-colors group"
+                        >
+                          <GitPullRequest className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground/50" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[13px] truncate">{pr.title}</span>
+                              <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-50 transition-opacity" />
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] font-mono text-muted-foreground/50">{pr.repoName}</span>
+                              <Badge variant="secondary" className={`text-[9px] px-1.5 py-0 ${prStateBadge(pr.state)}`}>
+                                {pr.state}
+                              </Badge>
+                            </div>
+                          </div>
+                          <span className="text-[10px] font-mono text-muted-foreground/40 shrink-0 mt-0.5">
+                            {timeAgo(pr.updatedAt || pr.createdAt)}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Commits */}
+                {github.commits.length > 0 && (
+                  <div className="rounded-lg border border-border bg-card">
+                    <div className="px-3 py-1.5 border-b border-border">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
+                        Recent Commits (atlas-console)
+                      </span>
+                    </div>
+                    <div className="divide-y divide-border">
+                      {github.commits.slice(0, 5).map((c, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2.5 px-3 py-1.5"
+                        >
+                          <GitCommit className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
+                          <code className="text-[10px] font-mono text-violet-400/70">{c.sha}</code>
+                          <span className="text-[12px] truncate flex-1">{c.message}</span>
+                          <span className="text-[10px] font-mono text-muted-foreground/40 shrink-0">
+                            {timeAgo(c.date)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Repos */}
+                {github.repos.length > 0 && (
+                  <div className="rounded-lg border border-border bg-card">
+                    <div className="px-3 py-1.5 border-b border-border">
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
+                        Repos
+                      </span>
+                    </div>
+                    <div className="divide-y divide-border">
+                      {github.repos.slice(0, 5).map((r, i) => (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2.5 px-3 py-1.5"
+                        >
+                          {r.isPrivate ? (
+                            <Lock className="h-3 w-3 shrink-0 text-amber-400/50" />
+                          ) : (
+                            <Globe className="h-3 w-3 shrink-0 text-muted-foreground/40" />
+                          )}
+                          <span className="text-[13px] font-mono">{r.name}</span>
+                          <span className="text-[10px] text-muted-foreground/40 truncate flex-1">{r.description || ""}</span>
+                          <span className="text-[10px] font-mono text-muted-foreground/40 shrink-0">
+                            {timeAgo(r.pushedAt)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="px-3 py-3 rounded-lg border border-border bg-card text-sm text-muted-foreground/50">
+                GitHub CLI not authenticated. Run <code className="text-xs bg-secondary px-1 py-0.5 rounded">gh auth login</code> to connect.
+              </div>
+            )}
+          </section>
         </div>
 
         {/* RIGHT COLUMN */}
@@ -281,7 +484,7 @@ export default function DashboardPage({ onNavigate }: DashboardProps) {
                 { label: "Messages", value: String(activityEvents.filter((e) => e.integration !== "system").length), icon: MessageSquare },
                 { label: "Sessions", value: String(sessions.length), icon: GitPullRequest },
                 { label: "Agents", value: String(agents.length), icon: Brain },
-                { label: "Channels", value: String(channelList.length), icon: Zap },
+                { label: "Integrations", value: String(allIntegrations.length), icon: Zap },
               ].map((stat) => (
                 <div key={stat.label} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card">
                   <stat.icon className="h-3.5 w-3.5 text-muted-foreground/50" />
@@ -298,13 +501,18 @@ export default function DashboardPage({ onNavigate }: DashboardProps) {
               Integrations
             </h3>
             <div className="rounded-lg border border-border bg-card divide-y divide-border">
-              {channelList.length > 0 ? (
-                channelList.map((int) => (
+              {allIntegrations.length > 0 ? (
+                allIntegrations.map((int) => (
                   <div key={int.name} className="flex items-center gap-2.5 px-3 py-2">
                     <int.icon className="h-3.5 w-3.5 text-muted-foreground/50" />
                     <span className="text-sm flex-1">{int.name}</span>
+                    {int.detail && (
+                      <span className="text-[10px] font-mono text-muted-foreground/40 truncate max-w-24">
+                        {int.detail}
+                      </span>
+                    )}
                     <span className={`h-2 w-2 rounded-full ${integrationDotColor(int.status as string)}`} />
-                    <span className="text-[10px] font-mono text-muted-foreground/50 w-20 text-right">
+                    <span className="text-[10px] font-mono text-muted-foreground/50 w-24 text-right">
                       {int.status as string}
                     </span>
                   </div>

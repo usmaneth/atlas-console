@@ -8,20 +8,21 @@ import {
   GitPullRequest,
   GitCommit,
   GitMerge,
-  Brain,
   MessageSquare,
   Github,
-  FileText,
   Zap,
   AlertTriangle,
   Bot,
   Loader2,
   CheckCircle2,
   XCircle,
-  Clock,
   ArrowRight,
-  Columns3,
+  ExternalLink,
+  Circle,
+  Lock,
 } from "lucide-react";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface DashboardProps {
   onNavigate?: (route: string) => void;
@@ -63,18 +64,29 @@ interface GitHubData {
   error?: string;
 }
 
-interface TaskItem {
-  title: string;
-  status: "in-progress" | "blocked" | "next" | "done" | "backlog";
-  agent?: string;
+// Parsed epic from master-task-breakdown.md
+interface Epic {
+  name: string;
+  column: "active" | "blocked" | "upcoming";
+  tasks: { title: string; done: boolean }[];
+  totalTasks: number;
+  doneTasks: number;
+  owner?: string;
+  status?: string;
 }
 
-interface TaskColumn {
-  label: string;
-  status: string;
-  color: string;
-  items: TaskItem[];
+// Activity feed item (human-readable)
+interface ActivityItem {
+  id: string;
+  icon: "pr-open" | "commit" | "merge" | "ci-fail" | "ci-pass" | "alert";
+  text: string;
+  detail?: string;
+  time: string;
+  actionUrl?: string;
+  actionRoute?: string;
 }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -87,12 +99,6 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
-function integrationDotColor(status: string): string {
-  if (status === "connected") return "bg-emerald-500";
-  if (status === "degraded" || status === "error") return "bg-amber-500";
-  return "bg-red-500";
-}
-
 function DashboardClock() {
   const [time, setTime] = useState(new Date());
   useEffect(() => {
@@ -100,73 +106,64 @@ function DashboardClock() {
     return () => clearInterval(t);
   }, []);
   return (
-    <span className="font-mono text-xs text-muted-foreground tabular-nums">
+    <span className="font-mono text-[11px] text-muted-foreground/50 tabular-nums">
       {time.toLocaleTimeString("en-US", { hour12: false })}
     </span>
   );
 }
 
 function formatUptime(ms: number | undefined): string {
-  if (!ms) return "--";
-  const totalSeconds = Math.floor(ms / 1000);
-  const d = Math.floor(totalSeconds / 86400);
-  const h = Math.floor((totalSeconds % 86400) / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  return `${d}d ${h}h ${m}m`;
+  if (!ms) return "—";
+  const s = Math.floor(ms / 1000);
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
 }
 
-// --- Activity Feed: transform raw data into human-readable items ---
+// ─── Garbage event filter ─────────────────────────────────────────────────────
 
-interface ActivityItem {
-  id: string;
-  icon: "pr" | "commit" | "merge" | "ci-fail" | "ci-pass" | "agent" | "system" | "alert";
-  text: string;
-  detail?: string;
-  time: string;
-  actionRoute?: string;
-}
+const IGNORED_EVENTS = new Set([
+  "presence", "tick", "health", "agent", "heartbeat",
+  "connect.challenge", "ping", "pong", "status",
+]);
 
-function buildActivityFeed(
+// ─── Activity Feed Builder ────────────────────────────────────────────────────
+
+function buildFeed(
   github: GitHubData | null,
-  gatewayEvents: { id: string; type: string; title: string; description?: string; timestamp: Date; integration: string }[],
+  rawEvents: { id: string; type: string; title: string; description?: string; timestamp: Date; integration: string }[],
 ): ActivityItem[] {
   const items: ActivityItem[] = [];
 
-  // GitHub PRs as activity
+  // GitHub PRs
   if (github?.prs) {
     for (const pr of github.prs) {
-      if (pr.state === "open") {
-        if (pr.ci?.failing && pr.ci.failing > 0) {
-          items.push({
-            id: `pr-ci-${pr.url}`,
-            icon: "ci-fail",
-            text: `${pr.ci.failing} CI check${pr.ci.failing > 1 ? "s" : ""} failing on "${pr.title}"`,
-            detail: `${pr.repoName} -- ${pr.ci.failedChecks.map((c) => c.name).join(", ")}`,
-            time: pr.updatedAt || pr.createdAt,
-            actionRoute: "/github",
-          });
-        } else if (pr.ci?.passing && pr.ci.passing > 0) {
-          items.push({
-            id: `pr-pass-${pr.url}`,
-            icon: "ci-pass",
-            text: `All ${pr.ci.passing} checks passing on "${pr.title}"`,
-            detail: pr.repoName,
-            time: pr.updatedAt || pr.createdAt,
-            actionRoute: "/github",
-          });
-        } else {
-          items.push({
-            id: `pr-open-${pr.url}`,
-            icon: "pr",
-            text: `Open PR: "${pr.title}"`,
-            detail: pr.repoName,
-            time: pr.updatedAt || pr.createdAt,
-            actionRoute: "/github",
-          });
-        }
+      if (pr.state === "open" && pr.ci?.failing) {
+        items.push({
+          id: `ci-fail-${pr.url}`,
+          icon: "ci-fail",
+          text: `${pr.ci.failing} CI check${pr.ci.failing > 1 ? "s" : ""} failing on "${pr.title}"`,
+          detail: `${pr.repoName} · ${pr.ci.failedChecks.map((c) => c.name).join(", ")}`,
+          time: pr.updatedAt || pr.createdAt,
+          actionRoute: "/github",
+        });
+      } else if (pr.state === "open") {
+        items.push({
+          id: `pr-${pr.url}`,
+          icon: pr.ci?.passing ? "ci-pass" : "pr-open",
+          text: pr.ci?.passing
+            ? `All ${pr.ci.passing} checks passing on "${pr.title}"`
+            : `Open PR: "${pr.title}"`,
+          detail: pr.repoName,
+          time: pr.updatedAt || pr.createdAt,
+          actionRoute: "/github",
+        });
       } else if (pr.state === "merged") {
         items.push({
-          id: `pr-merged-${pr.url}`,
+          id: `merged-${pr.url}`,
           icon: "merge",
           text: `Merged: "${pr.title}"`,
           detail: pr.repoName,
@@ -176,9 +173,9 @@ function buildActivityFeed(
     }
   }
 
-  // GitHub commits as activity
+  // GitHub commits
   if (github?.commits) {
-    for (const c of github.commits.slice(0, 5)) {
+    for (const c of github.commits.slice(0, 6)) {
       items.push({
         id: `commit-${c.sha}`,
         icon: "commit",
@@ -189,141 +186,119 @@ function buildActivityFeed(
     }
   }
 
-  // Gateway events transformed into readable items
-  for (const event of gatewayEvents.slice(0, 10)) {
-    if (event.type === "alert") {
-      items.push({
-        id: event.id,
-        icon: "alert",
-        text: event.title,
-        detail: event.description,
-        time: event.timestamp.toISOString(),
-      });
-    } else if (event.integration !== "system" || event.title !== "health") {
-      items.push({
-        id: event.id,
-        icon: event.integration === "github" ? "commit" : "system",
-        text: event.title,
-        detail: event.description,
-        time: event.timestamp.toISOString(),
-      });
+  // Gateway events — ONLY meaningful ones
+  for (const ev of rawEvents) {
+    if (IGNORED_EVENTS.has(ev.title.toLowerCase())) continue;
+    if (IGNORED_EVENTS.has(ev.type)) continue;
+    if (ev.type === "alert") {
+      items.push({ id: ev.id, icon: "alert", text: ev.title, detail: ev.description, time: ev.timestamp.toISOString() });
     }
+    // Skip all other raw system events — they're noise
   }
 
-  // Sort by time descending
   items.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
   return items;
 }
 
-const activityIconMap = {
-  pr: GitPullRequest,
+// ─── Task Breakdown Parser ────────────────────────────────────────────────────
+
+function parseEpics(md: string): Epic[] {
+  const epics: Epic[] = [];
+  const blocks = md.split(/^### /m).slice(1); // split by ### headers
+
+  for (const block of blocks) {
+    const lines = block.split("\n");
+    const name = lines[0]?.trim().replace(/^Epic \d+:\s*/, "").replace(/\s*\(.*\)$/, "") || "Unknown";
+
+    const tasks: { title: string; done: boolean }[] = [];
+    let statusLine = "";
+    let ownerLine = "";
+    let dependsLine = "";
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      const taskMatch = trimmed.match(/^[-*]\s*\[([x ]?)\]\s*\*\*(.+?)\*\*/);
+      if (taskMatch) {
+        tasks.push({ title: taskMatch[2].trim(), done: taskMatch[1] === "x" });
+      }
+      if (trimmed.startsWith("**Status:**")) statusLine = trimmed.toLowerCase();
+      if (trimmed.startsWith("**Owner:**")) ownerLine = trimmed.replace("**Owner:**", "").trim();
+      if (trimmed.startsWith("**Depends on:**")) dependsLine = trimmed.toLowerCase();
+    }
+
+    // Determine column
+    let column: Epic["column"] = "upcoming";
+    if (statusLine.includes("in progress") || statusLine.includes("shipped") || statusLine.includes("pr #")) {
+      column = "active";
+    }
+    if (statusLine.includes("not started") && dependsLine.includes("nothing")) {
+      column = "upcoming"; // can start but hasn't
+    }
+    if (
+      (dependsLine.includes("blocked") || dependsLine.includes("stefan") || dependsLine.includes("rutwik")) &&
+      !statusLine.includes("in progress")
+    ) {
+      column = "blocked";
+    }
+    if (statusLine.includes("not started") && statusLine.includes("phase 2")) column = "upcoming";
+    if (statusLine.includes("not started") && statusLine.includes("phase 3")) column = "upcoming";
+
+    const total = tasks.length;
+    const done = tasks.filter((t) => t.done).length;
+
+    epics.push({ name, column, tasks: tasks.filter((t) => !t.done), totalTasks: total, doneTasks: done, owner: ownerLine || undefined, status: statusLine });
+  }
+
+  return epics;
+}
+
+// ─── Icon Maps ────────────────────────────────────────────────────────────────
+
+const feedIcon = {
+  "pr-open": GitPullRequest,
   commit: GitCommit,
   merge: GitMerge,
   "ci-fail": XCircle,
   "ci-pass": CheckCircle2,
-  agent: Bot,
-  system: Zap,
   alert: AlertTriangle,
 };
 
-const activityColorMap: Record<string, string> = {
-  pr: "text-emerald-400",
+const feedColor: Record<string, string> = {
+  "pr-open": "text-emerald-400",
   commit: "text-blue-400",
   merge: "text-violet-400",
   "ci-fail": "text-red-400",
   "ci-pass": "text-emerald-400",
-  agent: "text-amber-400",
-  system: "text-muted-foreground",
   alert: "text-red-400",
 };
 
-// --- Task Board: parse master-task-breakdown.md ---
+const colMeta: Record<string, { label: string; accent: string; dot: string }> = {
+  active: { label: "Active", accent: "border-l-blue-500", dot: "bg-blue-500" },
+  blocked: { label: "Blocked", accent: "border-l-red-500", dot: "bg-red-500" },
+  upcoming: { label: "Up Next", accent: "border-l-amber-500", dot: "bg-amber-500" },
+};
 
-function parseTaskBreakdown(content: string): TaskColumn[] {
-  const columns: TaskColumn[] = [
-    { label: "In Progress", status: "in-progress", color: "border-blue-500/50", items: [] },
-    { label: "Blocked", status: "blocked", color: "border-red-500/50", items: [] },
-    { label: "Up Next", status: "next", color: "border-amber-500/50", items: [] },
-  ];
-
-  const lines = content.split("\n");
-  let currentStatus: string | null = null;
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-
-    // Detect section headers
-    const lower = trimmed.toLowerCase();
-    if (lower.includes("in progress") || lower.includes("in-progress") || lower.includes("active")) {
-      currentStatus = "in-progress";
-      continue;
-    }
-    if (lower.includes("blocked") || lower.includes("waiting")) {
-      currentStatus = "blocked";
-      continue;
-    }
-    if (lower.includes("up next") || lower.includes("backlog") || lower.includes("todo") || lower.includes("planned")) {
-      currentStatus = "next";
-      continue;
-    }
-    if (lower.includes("done") || lower.includes("completed") || lower.includes("shipped")) {
-      currentStatus = "done";
-      continue;
-    }
-
-    // Parse task items (- [ ] or - [x] or just - items)
-    const taskMatch = trimmed.match(/^[-*]\s*(?:\[([x ]?)\])?\s*(.+)/i);
-    if (taskMatch && currentStatus && currentStatus !== "done") {
-      const checked = taskMatch[1] === "x";
-      let title = taskMatch[2].trim();
-      let agent: string | undefined;
-
-      // Extract agent assignment like (@atlas-zeta-dev) or [atlas-platform-eng]
-      const agentMatch = title.match(/[\[@]([a-z-]+(?:-[a-z]+)*)[)\]]/i);
-      if (agentMatch) {
-        agent = agentMatch[1];
-        title = title.replace(/\s*[\[@][a-z-]+(?:-[a-z]+)*[)\]]/i, "").trim();
-      }
-
-      if (!checked) {
-        const col = columns.find((c) => c.status === currentStatus);
-        if (col) {
-          col.items.push({ title, status: currentStatus as TaskItem["status"], agent });
-        }
-      }
-    }
-  }
-
-  return columns.filter((c) => c.items.length > 0);
-}
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function DashboardPage({ onNavigate }: DashboardProps) {
   const { status, gatewayInfo } = useGateway();
-  const { events: activityEvents } = useActivity();
+  const { events: rawEvents } = useActivity();
   const { sessions } = useSessions();
   const { channels } = useChannels();
   const [config, setConfig] = useState<Record<string, unknown> | null>(null);
   const [github, setGithub] = useState<GitHubData | null>(null);
   const [githubLoading, setGithubLoading] = useState(true);
-  const [taskColumns, setTaskColumns] = useState<TaskColumn[]>([]);
-  const [taskLoading, setTaskLoading] = useState(true);
+  const [epics, setEpics] = useState<Epic[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/config").then((r) => r.json()).then(setConfig).catch(() => {});
-    fetch("/api/github")
-      .then((r) => r.json())
-      .then((d: GitHubData) => setGithub(d))
-      .catch(() => {})
-      .finally(() => setGithubLoading(false));
+    fetch("/api/github").then((r) => r.json()).then((d: GitHubData) => setGithub(d)).catch(() => {}).finally(() => setGithubLoading(false));
     fetch("/api/memory/master-task-breakdown.md")
       .then((r) => r.json())
-      .then((d: { content?: string }) => {
-        if (d.content) {
-          setTaskColumns(parseTaskBreakdown(d.content));
-        }
-      })
+      .then((d: { content?: string }) => { if (d.content) setEpics(parseEpics(d.content)); })
       .catch(() => {})
-      .finally(() => setTaskLoading(false));
+      .finally(() => setTasksLoading(false));
   }, []);
 
   const agents = useMemo(() => {
@@ -331,185 +306,237 @@ export default function DashboardPage({ onNavigate }: DashboardProps) {
     return list ?? [];
   }, [config]);
 
-  // Build integration status inline
-  const integrationDots = useMemo(() => {
-    const dots: { name: string; status: string }[] = [];
-
-    // From channels
-    if (channels.length > 0) {
-      for (const ch of channels) {
-        let s = "disconnected";
-        if (ch.running && ch.configured) s = "connected";
-        else if (ch.configured && !ch.running && ch.lastError) s = "error";
-        dots.push({ name: ch.label || ch.channelType || ch.accountId, status: s });
-      }
-    } else if (config?.channels) {
-      for (const [key, ch] of Object.entries(config.channels as Record<string, Record<string, unknown>>)) {
-        dots.push({ name: key, status: ch.enabled ? "connected" : "disconnected" });
-      }
+  // Integration dots
+  const dots = useMemo(() => {
+    const d: { name: string; ok: boolean }[] = [];
+    for (const ch of channels) {
+      d.push({ name: ch.label || ch.channelType || ch.accountId, ok: !!(ch.running && ch.configured) });
     }
+    if (github) d.push({ name: "GitHub", ok: github.authenticated });
+    return d;
+  }, [channels, github]);
 
-    // GitHub
-    if (github) {
-      dots.push({ name: "GitHub", status: github.authenticated ? "connected" : "error" });
-    }
+  const feed = useMemo(() => buildFeed(github, rawEvents), [github, rawEvents]);
 
-    return dots;
-  }, [channels, config, github]);
+  // Categorize epics
+  const epicsByCol = useMemo(() => {
+    const cols: Record<string, Epic[]> = { active: [], blocked: [], upcoming: [] };
+    for (const e of epics) cols[e.column]?.push(e);
+    return cols;
+  }, [epics]);
 
-  // Build activity feed
-  const activityFeed = useMemo(
-    () => buildActivityFeed(github, activityEvents),
-    [github, activityEvents],
-  );
+  // Open PR with CI failures (hero alert)
+  const failingPR = github?.prs.find((p) => p.state === "open" && p.ci?.failing);
 
   return (
-    <div className="space-y-6">
-      {/* Compact Status Bar */}
-      <div className="flex items-center gap-3 px-1">
-        <div className="flex items-center gap-1.5">
-          <span
-            className={`h-2 w-2 rounded-full ${status === "connected" ? "bg-emerald-500" : status === "connecting" ? "bg-yellow-500 animate-pulse" : "bg-red-500"}`}
-          />
-          <span className="text-[11px] font-mono text-muted-foreground">Gateway</span>
-        </div>
-        <span className="text-[10px] font-mono text-muted-foreground/40">|</span>
-        <span className="text-[10px] font-mono text-muted-foreground/50">
-          {formatUptime(gatewayInfo?.uptimeMs)} uptime
+    <div className="h-full flex flex-col gap-4 overflow-hidden">
+      {/* ── Status Bar ── */}
+      <div className="flex items-center gap-2.5 px-1 shrink-0">
+        <span className={`h-2 w-2 rounded-full ${status === "connected" ? "bg-emerald-500" : status === "connecting" ? "bg-amber-500 animate-pulse" : "bg-red-500"}`} />
+        <span className="text-[10px] font-mono text-muted-foreground/60">
+          {formatUptime(gatewayInfo?.uptimeMs)} · {sessions.length} sessions · {agents.length} agents
         </span>
-        <span className="text-[10px] font-mono text-muted-foreground/40">|</span>
-        <span className="text-[10px] font-mono text-muted-foreground/50">
-          {sessions.length} session{sessions.length !== 1 ? "s" : ""}
-        </span>
-        <span className="text-[10px] font-mono text-muted-foreground/40">|</span>
-        <span className="text-[10px] font-mono text-muted-foreground/50">
-          {agents.length} agent{agents.length !== 1 ? "s" : ""}
-        </span>
-
-        {/* Integration dots inline */}
         <div className="flex items-center gap-2 ml-auto">
-          {integrationDots.map((d) => (
-            <div key={d.name} className="flex items-center gap-1" title={`${d.name}: ${d.status}`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${integrationDotColor(d.status)}`} />
+          {dots.map((d) => (
+            <div key={d.name} className="flex items-center gap-1" title={d.name}>
+              <span className={`h-1.5 w-1.5 rounded-full ${d.ok ? "bg-emerald-500" : "bg-red-500"}`} />
               <span className="text-[9px] font-mono text-muted-foreground/40">{d.name}</span>
             </div>
           ))}
-          <span className="text-[10px] font-mono text-muted-foreground/40">|</span>
           <DashboardClock />
         </div>
       </div>
 
-      {/* Intelligent Activity Feed — HERO */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-medium text-foreground">Activity</h2>
-          <button
-            onClick={() => onNavigate?.("/activity")}
-            className="text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors flex items-center gap-1"
-          >
-            View all <ArrowRight className="h-3 w-3" />
-          </button>
-        </div>
-
-        <div className="rounded-xl border border-border bg-card/50">
-          {githubLoading ? (
-            <div className="flex items-center gap-2 px-4 py-8 justify-center text-muted-foreground/50 text-sm">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Building activity feed...
-            </div>
-          ) : activityFeed.length > 0 ? (
-            <div className="divide-y divide-border/50">
-              {activityFeed.slice(0, 12).map((item) => {
-                const Icon = activityIconMap[item.icon];
-                const color = activityColorMap[item.icon];
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => item.actionRoute && onNavigate?.(item.actionRoute)}
-                    className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors ${item.actionRoute ? "hover:bg-accent/30 cursor-pointer" : "cursor-default"}`}
-                  >
-                    <div className={`mt-0.5 shrink-0 ${color}`}>
-                      <Icon className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] leading-snug">{item.text}</p>
-                      {item.detail && (
-                        <p className="text-[11px] text-muted-foreground/50 mt-0.5 truncate">{item.detail}</p>
-                      )}
-                    </div>
-                    <span className="text-[10px] font-mono text-muted-foreground/40 shrink-0 mt-0.5">
-                      {timeAgo(item.time)}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground/40">
-              {status === "connected"
-                ? "No activity yet. Events from GitHub, agents, and integrations will appear here."
-                : "Connect to gateway to see activity."}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Task Board Preview */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Columns3 className="h-4 w-4 text-muted-foreground/50" />
-            <h2 className="text-sm font-medium text-foreground">Task Board</h2>
+      {/* ── CI Alert Banner ── */}
+      {failingPR && (
+        <button
+          onClick={() => onNavigate?.("/github")}
+          className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-red-500/30 bg-red-500/5 hover:bg-red-500/10 transition-colors shrink-0"
+        >
+          <XCircle className="h-4 w-4 text-red-400 shrink-0" />
+          <div className="flex-1 text-left min-w-0">
+            <span className="text-[13px] font-medium text-red-300">
+              {failingPR.ci?.failing} CI check{(failingPR.ci?.failing ?? 0) > 1 ? "s" : ""} failing
+            </span>
+            <span className="text-[12px] text-red-400/60 ml-2 truncate">{failingPR.title}</span>
           </div>
-        </div>
-
-        {taskLoading ? (
-          <div className="flex items-center gap-2 px-4 py-6 text-muted-foreground/50 text-sm">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Loading tasks...
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Bot className="h-3.5 w-3.5 text-violet-400" />
+            <span className="text-[11px] text-violet-400 font-medium">Fix with agent</span>
+            <ArrowRight className="h-3 w-3 text-violet-400/60" />
           </div>
-        ) : taskColumns.length > 0 ? (
-          <div className="grid grid-cols-3 gap-3">
-            {taskColumns.map((col) => (
-              <div key={col.status} className={`rounded-lg border ${col.color} bg-card/30 p-3`}>
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60">
-                    {col.label}
-                  </h3>
-                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 font-mono">
-                    {col.items.length}
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  {col.items.slice(0, 5).map((task, i) => (
-                    <div
-                      key={i}
-                      className="px-3 py-2 rounded-md bg-background/50 border border-border/50"
-                    >
-                      <p className="text-[12px] leading-snug">{task.title}</p>
-                      {task.agent && (
-                        <div className="flex items-center gap-1 mt-1.5">
-                          <Bot className="h-3 w-3 text-violet-400/60" />
-                          <span className="text-[10px] font-mono text-violet-400/60">{task.agent}</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  {col.items.length > 5 && (
-                    <p className="text-[10px] text-muted-foreground/40 text-center py-1">
-                      +{col.items.length - 5} more
-                    </p>
-                  )}
-                </div>
+        </button>
+      )}
+
+      {/* ── Main Content: 2 columns ── */}
+      <div className="flex-1 grid grid-cols-[1fr_380px] gap-4 min-h-0 overflow-hidden">
+        {/* LEFT: Activity Feed */}
+        <div className="flex flex-col min-h-0 overflow-hidden">
+          <div className="flex items-center justify-between mb-2 px-1 shrink-0">
+            <h2 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/50">Activity</h2>
+            <button onClick={() => onNavigate?.("/activity")} className="text-[10px] text-muted-foreground/40 hover:text-muted-foreground/60 flex items-center gap-0.5">
+              All <ArrowRight className="h-2.5 w-2.5" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto rounded-lg border border-border/50 bg-card/30">
+            {githubLoading ? (
+              <div className="flex items-center justify-center gap-2 py-12 text-muted-foreground/40 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading...
               </div>
-            ))}
+            ) : feed.length > 0 ? (
+              <div className="divide-y divide-border/30">
+                {feed.map((item) => {
+                  const Icon = feedIcon[item.icon];
+                  const color = feedColor[item.icon];
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        if (item.actionUrl) window.open(item.actionUrl, "_blank");
+                        else if (item.actionRoute) onNavigate?.(item.actionRoute);
+                      }}
+                      className={`w-full flex items-start gap-3 px-3 py-2.5 text-left transition-colors ${item.actionRoute || item.actionUrl ? "hover:bg-accent/20 cursor-pointer" : ""}`}
+                    >
+                      <Icon className={`h-3.5 w-3.5 mt-0.5 shrink-0 ${color}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] leading-snug">{item.text}</p>
+                        {item.detail && <p className="text-[10px] text-muted-foreground/40 mt-0.5 truncate">{item.detail}</p>}
+                      </div>
+                      <span className="text-[9px] font-mono text-muted-foreground/30 shrink-0 mt-0.5">{timeAgo(item.time)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center py-12 text-muted-foreground/30 text-sm">
+                {status === "connected" ? "No activity yet" : "Connecting..."}
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="rounded-lg border border-border bg-card/30 px-4 py-6 text-center text-sm text-muted-foreground/40">
-            No task breakdown found. Add a master-task-breakdown.md to your workspace memory.
+        </div>
+
+        {/* RIGHT: Task Board + GitHub Preview */}
+        <div className="flex flex-col gap-4 min-h-0 overflow-y-auto">
+          {/* Task Board */}
+          <div>
+            <h2 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/50 mb-2 px-1">Tasks</h2>
+            {tasksLoading ? (
+              <div className="flex items-center gap-2 py-6 text-muted-foreground/40 text-sm"><Loader2 className="h-4 w-4 animate-spin" /> Loading...</div>
+            ) : epics.length > 0 ? (
+              <div className="space-y-3">
+                {(["active", "blocked", "upcoming"] as const).map((col) => {
+                  const items = epicsByCol[col];
+                  if (!items || items.length === 0) return null;
+                  const meta = colMeta[col];
+                  return (
+                    <div key={col}>
+                      <div className="flex items-center gap-1.5 mb-1.5 px-1">
+                        <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/40">{meta.label}</span>
+                        <Badge variant="secondary" className="text-[8px] px-1 py-0 font-mono ml-auto">{items.length}</Badge>
+                      </div>
+                      <div className="space-y-1.5">
+                        {items.map((epic, i) => (
+                          <div key={i} className={`rounded-md border border-border/40 bg-card/40 border-l-2 ${meta.accent} px-3 py-2`}>
+                            <div className="flex items-center justify-between">
+                              <p className="text-[12px] font-medium leading-tight">{epic.name}</p>
+                              <span className="text-[9px] font-mono text-muted-foreground/40">{epic.doneTasks}/{epic.totalTasks}</span>
+                            </div>
+                            {/* Progress bar */}
+                            <div className="mt-1.5 h-1 rounded-full bg-border/30 overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${col === "active" ? "bg-blue-500" : col === "blocked" ? "bg-red-500" : "bg-amber-500"}`}
+                                style={{ width: `${epic.totalTasks > 0 ? (epic.doneTasks / epic.totalTasks) * 100 : 0}%` }}
+                              />
+                            </div>
+                            {epic.tasks.length > 0 && (
+                              <div className="mt-2 space-y-0.5">
+                                {epic.tasks.slice(0, 3).map((t, j) => (
+                                  <div key={j} className="flex items-center gap-1.5">
+                                    <Circle className="h-2 w-2 shrink-0 text-muted-foreground/20" />
+                                    <span className="text-[10px] text-muted-foreground/60 truncate">{t.title}</span>
+                                  </div>
+                                ))}
+                                {epic.tasks.length > 3 && (
+                                  <span className="text-[9px] text-muted-foreground/30 pl-3.5">+{epic.tasks.length - 3} more</span>
+                                )}
+                              </div>
+                            )}
+                            {epic.owner && (
+                              <p className="text-[9px] text-muted-foreground/30 mt-1.5">{epic.owner}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="rounded-md border border-border/30 bg-card/30 px-3 py-4 text-[11px] text-muted-foreground/30 text-center">
+                No task breakdown found
+              </div>
+            )}
           </div>
-        )}
-      </section>
+
+          {/* GitHub Quick View */}
+          <div>
+            <div className="flex items-center justify-between mb-2 px-1">
+              <div className="flex items-center gap-1.5">
+                <Github className="h-3 w-3 text-muted-foreground/40" />
+                <h2 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/50">GitHub</h2>
+              </div>
+              <button onClick={() => onNavigate?.("/github")} className="text-[10px] text-muted-foreground/40 hover:text-muted-foreground/60 flex items-center gap-0.5">
+                Full view <ArrowRight className="h-2.5 w-2.5" />
+              </button>
+            </div>
+            {githubLoading ? (
+              <div className="flex items-center gap-2 py-4 text-muted-foreground/40 text-sm"><Loader2 className="h-4 w-4 animate-spin" /></div>
+            ) : github?.authenticated ? (
+              <div className="space-y-1">
+                {github.prs.slice(0, 4).map((pr, i) => (
+                  <a
+                    key={i}
+                    href={pr.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-accent/20 transition-colors group"
+                  >
+                    {pr.state === "merged" ? (
+                      <GitMerge className="h-3 w-3 shrink-0 text-violet-400/60" />
+                    ) : (
+                      <GitPullRequest className="h-3 w-3 shrink-0 text-emerald-400/60" />
+                    )}
+                    <span className="text-[11px] truncate flex-1">{pr.title}</span>
+                    {pr.ci?.failing ? (
+                      <Badge variant="secondary" className="text-[8px] px-1 py-0 bg-red-500/15 text-red-400 border-red-500/20">✗ {pr.ci.failing}</Badge>
+                    ) : pr.ci?.passing ? (
+                      <Badge variant="secondary" className="text-[8px] px-1 py-0 bg-emerald-500/15 text-emerald-400 border-emerald-500/20">✓</Badge>
+                    ) : null}
+                    <ExternalLink className="h-2.5 w-2.5 shrink-0 opacity-0 group-hover:opacity-40" />
+                  </a>
+                ))}
+                {github.commits.length > 0 && (
+                  <div className="pt-1 mt-1 border-t border-border/20">
+                    {github.commits.slice(0, 3).map((c, i) => (
+                      <div key={i} className="flex items-center gap-2 px-3 py-1">
+                        <GitCommit className="h-2.5 w-2.5 shrink-0 text-muted-foreground/30" />
+                        <code className="text-[9px] font-mono text-violet-400/50">{c.sha}</code>
+                        <span className="text-[10px] text-muted-foreground/50 truncate flex-1">{c.message}</span>
+                        <span className="text-[8px] font-mono text-muted-foreground/20">{timeAgo(c.date)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="px-3 py-3 text-[11px] text-muted-foreground/30">
+                <code>gh auth login</code> to connect
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

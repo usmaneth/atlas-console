@@ -1,206 +1,394 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { useMessages, useStatus } from "@/lib/openclaw/hooks";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useMessages, useGateway, useSessions } from "@/lib/openclaw/hooks";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Square, MessageSquare, Bot, User, Loader2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import type { ChatMessage } from "@/lib/types";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import {
+  Send,
+  StopCircle,
+  Hash,
+  Plus,
+  MessageSquare,
+  Sparkles,
+  Clock,
+  ChevronDown,
+  Copy,
+  Check,
+  Bot,
+  User,
+  Zap,
+  Settings,
+  MoreHorizontal,
+} from "lucide-react";
 
-export default function ChatPage() {
-  const { messages, send, streamingContent, abortChat } = useMessages();
-  const { status } = useStatus();
-  const [input, setInput] = useState("");
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+/* ─── Channel System ─── */
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent]);
+interface Channel {
+  id: string;
+  name: string;
+  icon: typeof Hash;
+  description: string;
+  sessionKey?: string;
+  unread?: number;
+}
 
-  function handleSend() {
-    const text = input.trim();
-    if (!text) return;
-    send(text);
-    setInput("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
-  }
+const DEFAULT_CHANNELS: Channel[] = [
+  { id: "general", name: "general", icon: Hash, description: "Main conversation with Atlas", sessionKey: "atlas-console" },
+  { id: "platform", name: "platform", icon: Zap, description: "Atlas Console build progress" },
+  { id: "ideas", name: "ideas", icon: Sparkles, description: "Product thoughts & suggestions" },
+  { id: "github", name: "github", icon: MessageSquare, description: "PR/issue activity" },
+];
 
-  function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  }
+/* ─── Code Block with Copy ─── */
 
-  function handleInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    setInput(e.target.value);
-    const el = e.target;
-    el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 160) + "px";
-  }
+function CodeBlock({ language, children }: { language: string; children: string }) {
+  const [copied, setCopied] = useState(false);
 
-  const isStreaming = streamingContent !== null;
-  const isDisconnected = status !== "connected";
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(children);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [children]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-5rem)]">
-      {isDisconnected && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border-b border-amber-500/20 text-amber-400 text-xs font-data">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          {status === "connecting" ? "Connecting to gateway..." : "Gateway disconnected. Reconnecting..."}
+    <div className="relative group my-3 rounded-xl overflow-hidden border border-border/30">
+      <div className="flex items-center justify-between px-4 py-2 bg-secondary/80 border-b border-border/20">
+        <span className="text-[10px] font-data text-muted-foreground/60 uppercase tracking-wider">{language || "code"}</span>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-1 text-[10px] text-muted-foreground/50 hover:text-foreground transition-colors"
+        >
+          {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <SyntaxHighlighter
+        language={language || "text"}
+        style={oneDark}
+        customStyle={{
+          margin: 0,
+          padding: "1rem",
+          fontSize: "12px",
+          lineHeight: "1.6",
+          background: "transparent",
+        }}
+        className="!bg-[hsl(var(--secondary))]"
+      >
+        {children}
+      </SyntaxHighlighter>
+    </div>
+  );
+}
+
+/* ─── Message Bubble ─── */
+
+function MessageBubble({ message, isStreaming }: { message: ChatMessage; isStreaming?: boolean }) {
+  const isUser = message.role === "user";
+  const time = message.timestamp instanceof Date
+    ? message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : "";
+
+  return (
+    <div className={`group flex gap-3 px-6 py-3 hover:bg-accent/30 transition-colors ${isStreaming ? "animate-in fade-in-0 duration-300" : ""}`}>
+      {/* Avatar */}
+      <div className={`shrink-0 h-9 w-9 rounded-xl flex items-center justify-center mt-0.5 ${
+        isUser
+          ? "bg-soft-blue/15 text-soft-blue"
+          : "bg-warm-gold/15 text-warm-gold"
+      }`}>
+        {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className={`text-sm font-semibold ${isUser ? "text-soft-blue" : "text-warm-gold"}`}>
+            {isUser ? "Usman" : "Atlas"}
+          </span>
+          <span className="text-[10px] font-data text-muted-foreground/40">{time}</span>
+          {isStreaming && (
+            <span className="flex items-center gap-1 text-[10px] text-warm-gold/60">
+              <span className="h-1.5 w-1.5 rounded-full bg-warm-gold/60 animate-pulse" />
+              typing
+            </span>
+          )}
         </div>
-      )}
 
-      <ScrollArea className="flex-1">
-        {messages.length === 0 && !isStreaming ? (
-          <div className="flex flex-col items-center justify-center h-full py-32 text-muted-foreground">
-            <div className="h-16 w-16 rounded-2xl bg-warm-gold/15 flex items-center justify-center mb-6">
-              <MessageSquare className="h-8 w-8 text-warm-gold opacity-60" />
-            </div>
-            <p className="font-serif text-xl">Start a conversation with Atlas</p>
-            <p className="text-sm mt-2 text-muted-foreground/60">
-              Ask anything — code reviews, research, planning, or just chat.
-            </p>
-          </div>
-        ) : (
-          <div className="max-w-3xl mx-auto py-8 space-y-2">
-            {messages.map((msg) => (
-              <MessageBubble key={msg.id} role={msg.role} content={typeof msg.content === "string" ? msg.content : String(msg.content)} timestamp={msg.timestamp} />
-            ))}
-            {isStreaming && (
-              <MessageBubble role="atlas" content={streamingContent} timestamp={new Date()} isStreaming />
-            )}
-            <div ref={bottomRef} />
-          </div>
-        )}
-      </ScrollArea>
-
-      <div className="border-t border-border/60 p-4">
-        <div className="max-w-3xl mx-auto">
-          <div className="flex items-end gap-3 bg-secondary/60 rounded-xl px-4 py-3 border border-border/40">
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={handleInput}
-              onKeyDown={handleKeyDown}
-              placeholder={isDisconnected ? "Waiting for gateway..." : "Message Atlas..."}
-              disabled={isDisconnected}
-              rows={1}
-              className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground/50 focus:outline-none resize-none max-h-40 leading-relaxed disabled:opacity-50"
-            />
-            {isStreaming ? (
-              <button
-                onClick={abortChat}
-                className="p-2 rounded-xl bg-warm-gold/15 text-warm-gold hover:bg-warm-gold/25 transition-colors shrink-0"
-              >
-                <Square className="h-4 w-4" />
-              </button>
-            ) : (
-              <button
-                onClick={handleSend}
-                disabled={!input.trim() || isDisconnected}
-                className="p-2 rounded-xl bg-warm-gold text-background hover:opacity-90 disabled:opacity-30 transition-opacity shrink-0"
-              >
-                <Send className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          <p className="font-data text-[10px] text-muted-foreground/40 mt-2 text-center">
-            Enter to send · Shift+Enter for new line
-          </p>
+        <div className="text-[13px] leading-relaxed text-foreground/90 prose prose-sm max-w-none dark:prose-invert prose-p:my-1 prose-headings:font-serif prose-headings:tracking-tight prose-code:text-[12px] prose-code:font-data prose-pre:my-0 prose-pre:p-0 prose-pre:bg-transparent">
+          <ReactMarkdown
+            components={{
+              code: ({ className, children, ...props }) => {
+                const match = /language-(\w+)/.exec(className || "");
+                const isInline = !match;
+                if (isInline) {
+                  return (
+                    <code className="px-1.5 py-0.5 rounded-md bg-secondary text-[12px] font-data" {...props}>
+                      {children}
+                    </code>
+                  );
+                }
+                return (
+                  <CodeBlock language={match[1]}>
+                    {String(children).replace(/\n$/, "")}
+                  </CodeBlock>
+                );
+              },
+              a: ({ href, children }) => (
+                <a href={href} target="_blank" rel="noopener noreferrer" className="text-soft-blue hover:underline">
+                  {children}
+                </a>
+              ),
+            }}
+          >
+            {message.content}
+          </ReactMarkdown>
         </div>
       </div>
     </div>
   );
 }
 
-function MessageBubble({
-  role,
-  content,
-  timestamp,
-  isStreaming,
-}: {
-  role: "user" | "atlas";
-  content: string;
-  timestamp: Date;
-  isStreaming?: boolean;
-}) {
+/* ─── Typing Indicator ─── */
+
+function TypingIndicator({ content }: { content: string }) {
+  const fakeMessage: ChatMessage = {
+    id: "streaming",
+    role: "atlas",
+    content,
+    timestamp: new Date(),
+  };
+  return <MessageBubble message={fakeMessage} isStreaming />;
+}
+
+/* ─── Empty State ─── */
+
+function EmptyChat() {
   return (
-    <div
-      className={`group flex gap-4 px-5 py-5 rounded-xl transition-colors ${
-        role === "user" ? "bg-transparent" : "bg-secondary/40"
-      }`}
-    >
-      <div
-        className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-          role === "user"
-            ? "bg-primary text-primary-foreground"
-            : "bg-warm-gold/15 text-warm-gold"
-        }`}
-      >
-        {role === "user" ? <User className="h-3.5 w-3.5" /> : <Bot className="h-3.5 w-3.5" />}
+    <div className="flex flex-col items-center justify-center h-full text-center px-8">
+      <div className="h-16 w-16 rounded-2xl bg-warm-gold/10 flex items-center justify-center mb-6">
+        <Sparkles className="h-8 w-8 text-warm-gold/60" />
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="text-xs font-medium text-foreground/80">
-            {role === "user" ? "You" : "Atlas"}
-          </span>
-          <span className="font-data text-[10px] text-muted-foreground/50">
-            {timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </span>
-          {isStreaming && (
-            <span className="flex items-center gap-1 font-data text-[10px] text-warm-gold">
-              <Loader2 className="h-2.5 w-2.5 animate-spin" />
-              streaming
-            </span>
+      <h2 className="font-serif text-2xl font-semibold tracking-tight mb-2">Talk to Atlas</h2>
+      <p className="text-sm text-muted-foreground/60 max-w-sm leading-relaxed">
+        Your cofounder is listening. Ask anything — code reviews, product strategy, 
+        architecture decisions, or just think out loud.
+      </p>
+      <div className="flex flex-wrap gap-2 mt-6 max-w-md justify-center">
+        {["What PRs need my attention?", "Summarize today's Slack activity", "Review the Anuma roadmap", "What should I focus on today?"].map((suggestion) => (
+          <button
+            key={suggestion}
+            className="px-3 py-1.5 rounded-xl border border-border/30 text-[12px] text-muted-foreground/60 hover:text-foreground hover:border-warm-gold/30 hover:bg-warm-gold/5 transition-all"
+          >
+            {suggestion}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main Chat Page ─── */
+
+export default function ChatPage() {
+  const { messages, send, streamingContent, abortChat } = useMessages();
+  const { status } = useGateway();
+  const { sessions } = useSessions();
+  const [input, setInput] = useState("");
+  const [activeChannel, setActiveChannel] = useState("general");
+  const [channels] = useState<Channel[]>(DEFAULT_CHANNELS);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const [autoScroll, setAutoScroll] = useState(true);
+
+  // Auto-scroll on new messages
+  useEffect(() => {
+    if (autoScroll) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, streamingContent, autoScroll]);
+
+  // Focus input on mount
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const handleSend = useCallback(() => {
+    const text = input.trim();
+    if (!text || status !== "connected") return;
+    send(text);
+    setInput("");
+    setAutoScroll(true);
+    // Reset textarea height
+    if (inputRef.current) {
+      inputRef.current.style.height = "auto";
+    }
+  }, [input, send, status]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    },
+    [handleSend]
+  );
+
+  // Auto-resize textarea
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    const el = e.target;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 200) + "px";
+  }, []);
+
+  const activeChannelData = channels.find((c) => c.id === activeChannel);
+
+  return (
+    <div className="flex h-[calc(100vh-3.5rem)] -mt-4 -mx-8">
+      {/* Channel Sidebar */}
+      <div className="w-60 border-r border-border/30 flex flex-col bg-card/30">
+        {/* Sidebar Header */}
+        <div className="px-4 py-4 border-b border-border/20">
+          <div className="flex items-center justify-between">
+            <h2 className="font-serif text-sm font-semibold tracking-tight">Channels</h2>
+            <button className="h-6 w-6 rounded-lg hover:bg-accent/50 flex items-center justify-center text-muted-foreground/50 hover:text-foreground transition-colors">
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Channel List */}
+        <ScrollArea className="flex-1 px-2 py-2">
+          <div className="space-y-0.5">
+            {channels.map((channel) => {
+              const isActive = channel.id === activeChannel;
+              const Icon = channel.icon;
+              return (
+                <button
+                  key={channel.id}
+                  onClick={() => setActiveChannel(channel.id)}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all ${
+                    isActive
+                      ? "bg-warm-gold/10 text-foreground border border-warm-gold/15"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
+                  }`}
+                >
+                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? "text-warm-gold" : ""}`} />
+                  <span className="truncate">{channel.name}</span>
+                  {channel.unread && channel.unread > 0 && (
+                    <Badge className="ml-auto h-5 min-w-[20px] px-1.5 bg-soft-blue text-white text-[10px]">
+                      {channel.unread}
+                    </Badge>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Sessions */}
+          {sessions.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-[10px] font-data uppercase tracking-wider text-muted-foreground/40 px-3 mb-2">Active Sessions</h3>
+              <div className="space-y-0.5">
+                {sessions.slice(0, 8).map((session) => (
+                  <div
+                    key={session.id}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent/30 transition-colors cursor-default"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400/60 shrink-0" />
+                    <span className="truncate">{session.derivedTitle || session.agent || session.key}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </ScrollArea>
+
+        {/* Connection Status */}
+        <div className="px-4 py-3 border-t border-border/20">
+          <div className="flex items-center gap-2">
+            <span className={`h-2 w-2 rounded-full ${
+              status === "connected" ? "bg-emerald-500" : status === "connecting" ? "bg-yellow-500 animate-pulse" : "bg-red-500"
+            }`} />
+            <span className="text-[11px] font-data text-muted-foreground/50 capitalize">{status}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Channel Header */}
+        <div className="px-6 py-3 border-b border-border/20 flex items-center gap-3">
+          <Hash className="h-4 w-4 text-muted-foreground/50" />
+          <div>
+            <h2 className="text-sm font-semibold">{activeChannelData?.name || activeChannel}</h2>
+            <p className="text-[11px] text-muted-foreground/40">{activeChannelData?.description}</p>
+          </div>
+          <div className="flex-1" />
+          <button className="h-8 w-8 rounded-lg hover:bg-accent/50 flex items-center justify-center text-muted-foreground/40 hover:text-foreground transition-colors">
+            <Settings className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto" ref={scrollAreaRef}>
+          {messages.length === 0 && !streamingContent ? (
+            <EmptyChat />
+          ) : (
+            <div className="py-4">
+              {messages.map((msg) => (
+                <MessageBubble key={msg.id} message={msg} />
+              ))}
+              {streamingContent && <TypingIndicator content={streamingContent} />}
+              <div ref={messagesEndRef} />
+            </div>
           )}
         </div>
-        <div className="text-sm leading-relaxed prose dark:prose-invert prose-sm max-w-none prose-p:my-1.5 prose-pre:my-3 prose-code:text-warm-gold prose-code:bg-secondary prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
-          <ReactMarkdown
-            components={{
-              code({ className, children, ...props }) {
-                const match = /language-(\w+)/.exec(className || "");
-                const codeString = String(children).replace(/\n$/, "");
-                if (match) {
-                  return (
-                    <div className="relative group/code">
-                      <div className="flex items-center justify-between px-4 py-1.5 bg-muted rounded-t-lg border border-b-0 border-border/60">
-                        <span className="font-data text-[10px] text-muted-foreground uppercase">
-                          {match[1]}
-                        </span>
-                      </div>
-                      <SyntaxHighlighter
-                        style={oneDark}
-                        language={match[1]}
-                        PreTag="div"
-                        customStyle={{
-                          margin: 0,
-                          borderRadius: "0 0 0.75rem 0.75rem",
-                          fontSize: "12px",
-                          background: "var(--muted)",
-                          border: "1px solid var(--border)",
-                          borderTop: "none",
-                        }}
-                      >
-                        {codeString}
-                      </SyntaxHighlighter>
-                    </div>
-                  );
-                }
-                return (
-                  <code className={className} {...props}>
-                    {children}
-                  </code>
-                );
-              },
-            }}
-          >
-            {content}
-          </ReactMarkdown>
+
+        {/* Input Area */}
+        <div className="px-6 py-4 border-t border-border/20">
+          <div className="relative flex items-end gap-3 bg-card/60 border border-border/30 rounded-2xl px-4 py-3 focus-within:border-warm-gold/30 focus-within:ring-1 focus-within:ring-warm-gold/20 transition-all">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder={status === "connected" ? `Message #${activeChannelData?.name || activeChannel}` : "Connecting to Atlas..."}
+              disabled={status !== "connected"}
+              rows={1}
+              className="flex-1 bg-transparent text-[13px] placeholder:text-muted-foreground/30 resize-none border-none outline-none leading-relaxed max-h-[200px] disabled:opacity-50"
+            />
+            <div className="flex items-center gap-1 shrink-0">
+              {streamingContent ? (
+                <button
+                  onClick={abortChat}
+                  className="h-8 w-8 rounded-xl bg-red-500/15 text-red-400 hover:bg-red-500/25 flex items-center justify-center transition-colors"
+                  title="Stop generating"
+                >
+                  <StopCircle className="h-4 w-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim() || status !== "connected"}
+                  className="h-8 w-8 rounded-xl bg-warm-gold/15 text-warm-gold hover:bg-warm-gold/25 flex items-center justify-center transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                  title="Send message"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground/30 mt-2 text-center font-data">
+            {status === "connected" ? "Connected to Atlas Gateway • Enter to send, Shift+Enter for new line" : "Attempting to connect..."}
+          </p>
         </div>
       </div>
     </div>

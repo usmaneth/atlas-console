@@ -17,23 +17,28 @@ export function AppShell() {
   }, [currentRoute]);
 
   const currentModule = getModuleByRoute(currentRoute);
+  const isChat = currentModule?.id === "chat";
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar currentRoute={currentRoute} onNavigate={navigate} />
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Header — editorial style */}
-        <header className="flex items-center justify-between h-14 px-8 border-b border-border/60 shrink-0">
-          <h1 className="font-serif text-lg font-medium tracking-tight text-foreground">
-            {currentModule?.name ?? "Atlas Console"}
-          </h1>
-          <span className="font-data text-[10px] text-muted-foreground/40 tracking-wider uppercase">
-            Atlas Console
-          </span>
-        </header>
+        {/* Header — hidden for chat (it has its own) */}
+        {!isChat && (
+          <header className="flex items-center justify-between h-14 px-8 border-b border-border/30 shrink-0">
+            <h1 className="font-serif text-lg font-semibold tracking-tight text-foreground">
+              {currentModule?.name ?? "Atlas Console"}
+            </h1>
+            <span className="font-data text-[10px] text-muted-foreground/40 tracking-wider uppercase">
+              Atlas Console
+            </span>
+          </header>
+        )}
         {/* Content */}
-        <div className="flex-1 overflow-auto px-8 py-6">
-          <CurrentPage onNavigate={navigate} />
+        <div className={`flex-1 overflow-auto ${isChat ? "" : "px-8 py-6"}`}>
+          <div className={isChat ? "h-full" : "page-enter"}>
+            <CurrentPage onNavigate={navigate} />
+          </div>
         </div>
       </main>
     </div>

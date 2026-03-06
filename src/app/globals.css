@@ -1,163 +1,159 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
+/* ─── Light Theme: Warm Cream Editorial ─── */
+:root {
+  --background: 40 30% 97%;
+  --foreground: 30 15% 12%;
+  --card: 40 25% 99%;
+  --card-foreground: 30 15% 12%;
+  --popover: 40 25% 99%;
+  --popover-foreground: 30 15% 12%;
+  --primary: 37 90% 51%;
+  --primary-foreground: 40 30% 97%;
+  --secondary: 35 15% 93%;
+  --secondary-foreground: 30 15% 25%;
+  --muted: 35 15% 93%;
+  --muted-foreground: 30 8% 48%;
+  --accent: 35 20% 91%;
+  --accent-foreground: 30 15% 12%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 35 12% 88%;
+  --input: 35 12% 88%;
+  --ring: 37 90% 51%;
+  --radius: 0.75rem;
+
+  /* Atlas custom tokens */
+  --warm-gold: 37 90% 51%;
+  --soft-blue: 215 80% 55%;
+  --alert: 0 72% 51%;
+  --github: 0 0% 20%;
+  --slack: 340 60% 48%;
+  --notion: 0 0% 20%;
+}
+
+/* ─── Dark Theme: Warm Charcoal with Depth ─── */
+.dark {
+  --background: 30 8% 8%;
+  --foreground: 35 15% 90%;
+  --card: 30 8% 11%;
+  --card-foreground: 35 15% 90%;
+  --popover: 30 8% 11%;
+  --popover-foreground: 35 15% 90%;
+  --primary: 37 85% 55%;
+  --primary-foreground: 30 8% 8%;
+  --secondary: 30 6% 15%;
+  --secondary-foreground: 35 12% 75%;
+  --muted: 30 6% 15%;
+  --muted-foreground: 30 8% 55%;
+  --accent: 30 6% 18%;
+  --accent-foreground: 35 15% 90%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 30 6% 18%;
+  --input: 30 6% 18%;
+  --ring: 37 85% 55%;
+
+  --warm-gold: 37 85% 55%;
+  --soft-blue: 215 75% 60%;
+  --alert: 0 72% 58%;
+  --github: 0 0% 90%;
+  --slack: 340 55% 55%;
+  --notion: 0 0% 90%;
+}
+
+/* ─── Base ─── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-warm-gold: hsl(var(--warm-gold));
+  --color-soft-blue: hsl(var(--soft-blue));
+  --color-alert: hsl(var(--alert));
+  --color-github: hsl(var(--github));
+  --color-slack: hsl(var(--slack));
+  --color-notion: hsl(var(--notion));
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-jetbrains, var(--font-geist-mono));
-
-  --color-github: #3fb950;
-  --color-slack: #a855f7;
-  --color-notion: #60a5fa;
-  --color-alert: #f97316;
-
-  /* Editorial accent palette */
-  --color-warm-gold: #d4a574;
-  --color-warm-amber: #c4956a;
-  --color-soft-blue: #7ba7d4;
+  --font-serif: var(--font-playfair), Georgia, "Times New Roman", serif;
+  --font-data: var(--font-jetbrains), "SF Mono", "Fira Code", monospace;
 }
 
-/* ─── Light Theme (default) ─── */
-:root {
-  --radius: 0.625rem;
-  --background: hsl(40 30% 97%);
-  --foreground: hsl(220 20% 14%);
-  --card: hsl(0 0% 100%);
-  --card-foreground: hsl(220 20% 14%);
-  --popover: hsl(0 0% 100%);
-  --popover-foreground: hsl(220 20% 14%);
-  --primary: hsl(220 20% 14%);
-  --primary-foreground: hsl(40 30% 97%);
-  --secondary: hsl(40 20% 94%);
-  --secondary-foreground: hsl(220 20% 14%);
-  --muted: hsl(40 15% 93%);
-  --muted-foreground: hsl(220 10% 46%);
-  --accent: hsl(35 50% 95%);
-  --accent-foreground: hsl(220 20% 14%);
-  --destructive: hsl(0 72% 51%);
-  --destructive-foreground: hsl(0 0% 100%);
-  --border: hsl(30 15% 88%);
-  --input: hsl(30 15% 88%);
-  --ring: hsl(25 60% 52%);
-  --sidebar: hsl(40 20% 98%);
-  --sidebar-foreground: hsl(220 10% 40%);
-  --sidebar-border: hsl(30 15% 91%);
-  --sidebar-accent: hsl(35 40% 95%);
-  --sidebar-accent-foreground: hsl(220 20% 14%);
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-geist-sans), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 100px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.3);
+  }
+
+  /* Selection */
+  ::selection {
+    background: hsl(var(--warm-gold) / 0.2);
+    color: hsl(var(--foreground));
+  }
 }
 
-/* ─── Dark Theme ─── */
-.dark {
-  --background: hsl(220 12% 8%);
-  --foreground: hsl(40 10% 92%);
-  --card: hsl(220 10% 11%);
-  --card-foreground: hsl(40 10% 92%);
-  --popover: hsl(220 10% 11%);
-  --popover-foreground: hsl(40 10% 92%);
-  --primary: hsl(40 10% 92%);
-  --primary-foreground: hsl(220 10% 11%);
-  --secondary: hsl(220 8% 14%);
-  --secondary-foreground: hsl(40 10% 92%);
-  --muted: hsl(220 8% 14%);
-  --muted-foreground: hsl(220 8% 50%);
-  --accent: hsl(220 8% 16%);
-  --accent-foreground: hsl(40 10% 92%);
-  --destructive: oklch(0.55 0.2 27);
-  --destructive-foreground: hsl(40 10% 92%);
-  --border: hsl(220 8% 16%);
-  --input: hsl(220 8% 16%);
-  --ring: hsl(35 40% 55%);
-  --sidebar: hsl(225 12% 7%);
-  --sidebar-foreground: hsl(220 8% 48%);
-  --sidebar-border: hsl(220 10% 13%);
-  --sidebar-accent: hsl(220 10% 12%);
-  --sidebar-accent-foreground: hsl(40 10% 92%);
+/* ─── Typography ─── */
+@layer utilities {
+  .font-serif {
+    font-family: var(--font-serif);
+  }
+  .font-data {
+    font-family: var(--font-data);
+  }
 }
 
-* {
-  border-color: var(--border);
-}
+/* ─── Animations ─── */
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Typography classes */
-.font-serif {
-  font-family: var(--font-playfair), Georgia, 'Times New Roman', serif;
-}
-
-.font-data {
-  font-family: var(--font-jetbrains, var(--font-geist-mono)), 'Courier New', monospace;
-}
-
-/* Scrollbar styling for warm dark theme */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: hsl(220 8% 20%);
-  border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(220 8% 28%);
-}
-
-/* ─── Typewriter Animation ─── */
-@keyframes typewriter-cursor {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
-
-.typewriter-cursor::after {
-  content: '|';
-  animation: typewriter-cursor 0.8s ease-in-out infinite;
-  color: var(--color-warm-gold);
-  font-weight: 300;
-  margin-left: 1px;
-}
-
-/* ─── Fade & Slide In ─── */
-@keyframes fadeSlideIn {
+/* Fade slide in */
+@keyframes fade-slide-in {
   from {
     opacity: 0;
     transform: translateY(8px);
@@ -169,12 +165,13 @@ body {
 }
 
 .fade-slide-in {
-  animation: fadeSlideIn 0.4s ease-out both;
+  animation: fade-slide-in 0.4s ease-out forwards;
 }
 
 /* Stagger children */
 .stagger-children > * {
-  animation: fadeSlideIn 0.35s ease-out both;
+  opacity: 0;
+  animation: fade-slide-in 0.35s ease-out forwards;
 }
 .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
 .stagger-children > *:nth-child(2) { animation-delay: 50ms; }
@@ -184,137 +181,96 @@ body {
 .stagger-children > *:nth-child(6) { animation-delay: 250ms; }
 .stagger-children > *:nth-child(7) { animation-delay: 300ms; }
 .stagger-children > *:nth-child(8) { animation-delay: 350ms; }
+.stagger-children > *:nth-child(n+9) { animation-delay: 400ms; }
 
-/* ─── Subtle Pulse ─── */
-@keyframes subtlePulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
-.subtle-pulse {
-  animation: subtlePulse 2s ease-in-out infinite;
-}
-
-/* ─── Card hover lift ─── */
+/* Card hover */
 .card-hover {
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: all 0.2s ease;
 }
-
 .card-hover:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.3), 0 0 0 1px hsl(220 8% 20%);
+  box-shadow: 0 4px 12px hsl(var(--foreground) / 0.04);
+}
+.dark .card-hover:hover {
+  box-shadow: 0 4px 12px hsl(0 0% 0% / 0.2);
 }
 
-/* ─── Agent Step Progress ─── */
-@keyframes progressStep {
-  0% { width: 0%; }
-  100% { width: 100%; }
+/* Typewriter */
+@keyframes typewriter {
+  from { width: 0; }
+  to { width: 100%; }
+}
+@keyframes blink-caret {
+  from, to { border-color: transparent; }
+  50% { border-color: hsl(var(--warm-gold)); }
+}
+.typewriter {
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid hsl(var(--warm-gold));
+  animation: typewriter 2s steps(40, end), blink-caret 0.75s step-end infinite;
 }
 
-.progress-step {
-  animation: progressStep 2s ease-in-out;
-}
-
-/* ─── Status pulse for active agents ─── */
-@keyframes status-glow {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(212, 165, 116, 0.4); }
-  50% { opacity: 0.8; box-shadow: 0 0 0 4px rgba(212, 165, 116, 0); }
-}
-
-.status-pulse {
-  animation: status-glow 2s ease-in-out infinite;
-}
-
-/* ─── Task runner animations ─── */
-.task-runner-enter {
-  animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.step-done {
-  animation: stepComplete 0.3s ease-out;
-}
-
-@keyframes stepComplete {
-  0% { transform: scale(0.8); opacity: 0.5; }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-.step-active {
-  animation: stepPulse 1.5s ease-in-out infinite;
-}
-
-@keyframes stepPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 165, 116, 0.3); }
-  50% { box-shadow: 0 0 0 6px rgba(212, 165, 116, 0); }
-}
-
-.step-detail {
-  animation: fadeIn 0.4s ease-out;
-}
-
-.ci-expand {
-  animation: fadeIn 0.2s ease-out;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* ─── Context deposit animations ─── */
-.deposit-pulse {
-  animation: depositGlow 1.2s ease-in-out infinite;
-}
-
-@keyframes depositGlow {
-  0%, 100% { transform: scale(1); filter: brightness(1); }
-  50% { transform: scale(1.15); filter: brightness(1.3); }
-}
-
-.deposit-done {
-  animation: depositComplete 0.5s ease-out;
-}
-
-@keyframes depositComplete {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-/* ─── Warm glow for logo ─── */
-.logo-glow {
-  box-shadow: 0 0 12px -2px rgba(212, 165, 116, 0.3), 0 0 4px -1px rgba(212, 165, 116, 0.15);
-}
-
-/* ─── Skeleton loading ─── */
+/* Skeleton loading */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
-
 .skeleton {
   background: linear-gradient(
     90deg,
-    hsl(220 8% 12%) 25%,
-    hsl(220 8% 16%) 50%,
-    hsl(220 8% 12%) 75%
+    hsl(var(--secondary)) 25%,
+    hsl(var(--accent)) 50%,
+    hsl(var(--secondary)) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
-  border-radius: 6px;
+  border-radius: var(--radius);
 }
 
-/* ─── CI alert pulse ─── */
-@keyframes alertPulse {
-  0%, 100% { border-color: hsl(0 72% 51% / 0.3); }
-  50% { border-color: hsl(0 72% 51% / 0.5); }
+/* Deposit pulse */
+@keyframes deposit-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.8; }
+}
+.deposit-pulse {
+  animation: deposit-pulse 1.2s ease-in-out infinite;
 }
 
-.alert-pulse {
-  animation: alertPulse 2s ease-in-out infinite;
+/* Deposit done */
+.deposit-done {
+  animation: fade-slide-in 0.5s ease-out;
+}
+
+/* Glow effect for connected status */
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 2px hsl(var(--warm-gold) / 0.3); }
+  50% { box-shadow: 0 0 8px hsl(var(--warm-gold) / 0.2); }
+}
+.glow {
+  animation: glow 3s ease-in-out infinite;
+}
+
+/* Subtle float */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+.float {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Page transition */
+.page-enter {
+  animation: fade-slide-in 0.3s ease-out;
+}
+
+/* Prose overrides for chat */
+.prose pre {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+}
+.prose code {
+  font-family: var(--font-data);
 }

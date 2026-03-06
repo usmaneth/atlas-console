@@ -1,143 +1,167 @@
 "use client";
 
-import { useCallback } from "react";
+import { useState } from "react";
 import { useTheme } from "next-themes";
-import { getModules } from "@/lib/modules/registry";
 import { useGateway } from "@/lib/openclaw/hooks";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { getModules } from "@/lib/modules/registry";
 import {
   LayoutDashboard,
   Activity,
   MessageSquare,
   Brain,
-  Settings,
   Bot,
+  Settings,
   Github,
   Sun,
   Moon,
-  type LucideIcon,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
 } from "lucide-react";
-
-const iconMap: Record<string, LucideIcon> = {
-  "layout-dashboard": LayoutDashboard,
-  bot: Bot,
-  activity: Activity,
-  "message-square": MessageSquare,
-  brain: Brain,
-  settings: Settings,
-  github: Github,
-};
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SidebarProps {
   currentRoute: string;
   onNavigate: (route: string) => void;
 }
 
-function ConnectionIndicator({ status }: { status: string }) {
-  const color =
-    status === "connected"
-      ? "bg-emerald-500"
-      : status === "connecting"
-        ? "bg-amber-500 animate-pulse"
-        : "bg-red-500";
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="flex items-center justify-center p-2">
-          <span className={`h-2 w-2 rounded-full ${color}`} />
-        </div>
-      </TooltipTrigger>
-      <TooltipContent side="right">
-        <span className="capitalize">{status}</span>
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          className="flex items-center justify-center h-9 w-9 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
-        >
-          <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">Toggle theme</span>
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="right" className="font-sans text-xs">
-        Toggle theme
-      </TooltipContent>
-    </Tooltip>
-  );
-}
+const iconMap: Record<string, typeof LayoutDashboard> = {
+  "layout-dashboard": LayoutDashboard,
+  "activity": Activity,
+  "message-square": MessageSquare,
+  "brain": Brain,
+  "bot": Bot,
+  "settings": Settings,
+  "github": Github,
+};
 
 export function Sidebar({ currentRoute, onNavigate }: SidebarProps) {
-  const { status } = useGateway();
   const modules = getModules();
-
-  const handleNav = useCallback(
-    (route: string) => {
-      onNavigate(route);
-    },
-    [onNavigate]
-  );
+  const { status } = useGateway();
+  const { theme, setTheme } = useTheme();
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <aside className="flex flex-col items-center w-[60px] bg-sidebar border-r border-sidebar-border py-4 gap-1.5">
-      {/* Logo — Playfair "A" with warm glow */}
-      <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-warm-gold/20 to-warm-amber/10 border border-warm-gold/20 logo-glow mb-5">
-        <span className="font-serif text-lg font-bold text-warm-gold">
-          A
-        </span>
+    <aside
+      className={`flex flex-col border-r border-border/30 bg-card/30 backdrop-blur-sm transition-all duration-300 shrink-0 ${
+        collapsed ? "w-16" : "w-52"
+      }`}
+    >
+      {/* Logo */}
+      <div className="px-4 py-5 border-b border-border/20">
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-xl bg-warm-gold/15 flex items-center justify-center shrink-0 glow">
+            <Sparkles className="h-4 w-4 text-warm-gold" />
+          </div>
+          {!collapsed && (
+            <div className="overflow-hidden">
+              <h1 className="font-serif text-base font-bold tracking-tight leading-tight">Atlas</h1>
+              <p className="text-[10px] font-data text-muted-foreground/40 leading-tight">console</p>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Module nav */}
-      <nav className="flex flex-col items-center gap-1 flex-1">
+      {/* Navigation */}
+      <nav className="flex-1 px-2 py-4 space-y-1">
         {modules.map((mod) => {
-          const Icon = iconMap[mod.icon];
           const isActive = currentRoute === mod.route;
+          const Icon = iconMap[mod.icon] || LayoutDashboard;
 
-          return (
-            <Tooltip key={mod.id}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={() => handleNav(mod.route)}
-                  className={`flex items-center justify-center h-10 w-10 rounded-xl transition-all duration-200 ${
-                    isActive
-                      ? "bg-warm-gold/15 text-warm-gold border border-warm-gold/20 shadow-[0_0_8px_-2px_rgba(212,165,116,0.2)]"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
-                  }`}
-                >
-                  {Icon ? (
-                    <Icon className={`h-[18px] w-[18px] ${isActive ? "" : "opacity-70"}`} />
-                  ) : (
-                    <span className="text-xs font-medium">{mod.name[0]}</span>
-                  )}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="font-sans text-xs">
-                {mod.name}
-              </TooltipContent>
-            </Tooltip>
+          const button = (
+            <button
+              key={mod.id}
+              onClick={() => onNavigate(mod.route)}
+              className={`w-full flex items-center gap-3 rounded-xl transition-all duration-200 ${
+                collapsed ? "px-0 py-2.5 justify-center" : "px-3 py-2.5"
+              } ${
+                isActive
+                  ? "bg-warm-gold/10 text-foreground border border-warm-gold/15 shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-accent/40"
+              }`}
+            >
+              <Icon
+                className={`h-[18px] w-[18px] shrink-0 transition-colors ${
+                  isActive ? "text-warm-gold" : ""
+                }`}
+              />
+              {!collapsed && (
+                <span className="text-[13px] font-medium">{mod.name}</span>
+              )}
+              {mod.id === "chat" && !collapsed && (
+                <span className={`ml-auto h-2 w-2 rounded-full ${
+                  status === "connected" ? "bg-emerald-400" : "bg-muted-foreground/30"
+                }`} />
+              )}
+            </button>
           );
+
+          if (collapsed) {
+            return (
+              <Tooltip key={mod.id}>
+                <TooltipTrigger asChild>{button}</TooltipTrigger>
+                <TooltipContent side="right" className="text-xs">
+                  {mod.name}
+                </TooltipContent>
+              </Tooltip>
+            );
+          }
+
+          return button;
         })}
       </nav>
 
-      {/* Theme toggle */}
-      <ThemeToggle />
+      {/* Bottom Controls */}
+      <div className="px-2 py-3 border-t border-border/20 space-y-1">
+        {/* Theme Toggle */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              className={`w-full flex items-center gap-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-all duration-200 ${
+                collapsed ? "px-0 py-2.5 justify-center" : "px-3 py-2.5"
+              }`}
+            >
+              {theme === "dark" ? (
+                <Sun className="h-[18px] w-[18px] shrink-0" />
+              ) : (
+                <Moon className="h-[18px] w-[18px] shrink-0" />
+              )}
+              {!collapsed && (
+                <span className="text-[13px] font-medium">
+                  {theme === "dark" ? "Light mode" : "Dark mode"}
+                </span>
+              )}
+            </button>
+          </TooltipTrigger>
+          {collapsed && (
+            <TooltipContent side="right" className="text-xs">
+              {theme === "dark" ? "Light mode" : "Dark mode"}
+            </TooltipContent>
+          )}
+        </Tooltip>
 
-      {/* Connection status at bottom */}
-      <ConnectionIndicator status={status} />
+        {/* Collapse Toggle */}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className={`w-full flex items-center gap-3 rounded-xl text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent/30 transition-all duration-200 ${
+            collapsed ? "px-0 py-2 justify-center" : "px-3 py-2"
+          }`}
+        >
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4 shrink-0" />
+          ) : (
+            <>
+              <ChevronLeft className="h-4 w-4 shrink-0" />
+              <span className="text-[11px]">Collapse</span>
+            </>
+          )}
+        </button>
+      </div>
     </aside>
   );
 }

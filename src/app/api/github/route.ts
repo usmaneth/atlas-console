@@ -3,7 +3,7 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 
 const exec = promisify(execFile);
-const GH = "/opt/homebrew/bin/gh";
+const GH = process.env.GH_PATH || "/usr/bin/gh";
 
 async function gh(args: string[], timeout = 15000): Promise<string> {
   const { stdout } = await exec(GH, args, { timeout });

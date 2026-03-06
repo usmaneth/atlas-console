@@ -25,6 +25,8 @@ import {
   FileText,
   Bot,
   ExternalLink,
+  Hash,
+  MessageCircle,
 } from "lucide-react";
 
 /* ─── Types ─── */
@@ -217,6 +219,93 @@ function QuickStats({ prs, sessions }: { prs: GitHubPR[]; sessions: { id: string
   );
 }
 
+/* ─── Slack Feed ─── */
+
+interface SlackFeedItem {
+  channel: string;
+  channelId: string;
+  user: string;
+  text: string;
+  ts: string;
+  replyCount: number;
+}
+
+function SlackFeed() {
+  const [feed, setFeed] = useState<SlackFeedItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/slack?action=feed")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.feed) setFeed(data.feed);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  function slackTimeAgo(ts: string): string {
+    const diff = Date.now() - parseFloat(ts) * 1000;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "now";
+    if (mins < 60) return `${mins}m`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h`;
+    return `${Math.floor(hrs / 24)}d`;
+  }
+
+  // Clean slack markup
+  function cleanText(text: string): string {
+    return text
+      .replace(/<@[A-Z0-9]+>/g, "@someone")
+      .replace(/<#[A-Z0-9]+\|([^>]+)>/g, "#$1")
+      .replace(/<(https?:\/\/[^|>]+)\|([^>]+)>/g, "$2")
+      .replace(/<(https?:\/\/[^>]+)>/g, "$1")
+      .slice(0, 200);
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <MessageCircle className="h-4 w-4 text-slack" />
+        <h3 className="font-serif text-base font-semibold tracking-tight">Slack</h3>
+        <span className="text-[10px] font-data text-muted-foreground/40">{feed.length} messages</span>
+      </div>
+      {loading ? (
+        <div className="space-y-2">
+          <div className="skeleton h-14 rounded-xl" />
+          <div className="skeleton h-14 rounded-xl" />
+          <div className="skeleton h-14 rounded-xl" />
+        </div>
+      ) : feed.length > 0 ? (
+        <div className="space-y-1">
+          {feed.slice(0, 8).map((item, i) => (
+            <div key={`${item.ts}-${i}`} className="flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-accent/20 transition-colors">
+              <Hash className="h-3.5 w-3.5 mt-1 shrink-0 text-slack/50" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-data text-slack/70">#{item.channel}</span>
+                  <span className="text-[10px] text-muted-foreground/30">·</span>
+                  <span className="text-[11px] font-medium">{item.user}</span>
+                  {item.replyCount > 0 && (
+                    <Badge variant="secondary" className="text-[9px] font-data px-1 py-0">{item.replyCount} replies</Badge>
+                  )}
+                </div>
+                <p className="text-[12px] text-muted-foreground/60 mt-0.5 truncate">{cleanText(item.text)}</p>
+              </div>
+              <span className="text-[9px] font-data text-muted-foreground/30 shrink-0 mt-1">{slackTimeAgo(item.ts)}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground/40 py-4 text-center rounded-xl bg-card/20 border border-border/10">
+          No Slack messages yet — configure SLACK_USER_TOKEN
+        </p>
+      )}
+    </div>
+  );
+}
+
 function RecentActivity({ events }: { events: ActivityEvent[] }) {
   const recent = events.slice(0, 8);
 
@@ -337,8 +426,9 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Activity Feed - Side Column */}
-        <div className="col-span-2">
+        {/* Side Column */}
+        <div className="col-span-2 space-y-6">
+          <SlackFeed />
           <RecentActivity events={events} />
         </div>
       </div>

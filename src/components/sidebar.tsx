@@ -15,6 +15,7 @@ import {
   Brain,
   Settings,
   Bot,
+  Github,
   type LucideIcon,
 } from "lucide-react";
 
@@ -25,6 +26,7 @@ const iconMap: Record<string, LucideIcon> = {
   "message-square": MessageSquare,
   brain: Brain,
   settings: Settings,
+  github: Github,
 };
 
 interface SidebarProps {

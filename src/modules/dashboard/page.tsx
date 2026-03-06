@@ -7,19 +7,20 @@ import { Badge } from "@/components/ui/badge";
 import {
   GitPullRequest,
   GitCommit,
+  GitMerge,
   Brain,
   MessageSquare,
   Github,
   FileText,
-  Mail,
   Zap,
-  Calendar,
   AlertTriangle,
   Bot,
   Loader2,
-  ExternalLink,
-  Lock,
-  Globe,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ArrowRight,
+  Columns3,
 } from "lucide-react";
 
 interface DashboardProps {
@@ -52,56 +53,39 @@ interface GitHubCommit {
   author: string;
 }
 
-interface GitHubRepo {
-  name: string;
-  pushedAt: string;
-  defaultBranch: string;
-  description: string | null;
-  isPrivate: boolean;
-  url: string | null;
-}
-
 interface GitHubData {
   user: string;
   authenticated: boolean;
   prs: GitHubPR[];
-  repos: GitHubRepo[];
+  repos: { name: string; pushedAt: string; defaultBranch: string; description: string | null; isPrivate: boolean; url: string | null }[];
   commits: GitHubCommit[];
   fetchedAt: string;
   error?: string;
 }
 
-function prStateBadge(state: string) {
-  if (state === "open") return "bg-emerald-500/15 text-emerald-400 border-emerald-500/20";
-  if (state === "merged") return "bg-violet-500/15 text-violet-400 border-violet-500/20";
-  if (state === "closed") return "bg-red-500/15 text-red-400 border-red-500/20";
-  return "bg-muted text-muted-foreground";
+interface TaskItem {
+  title: string;
+  status: "in-progress" | "blocked" | "next" | "done" | "backlog";
+  agent?: string;
+}
+
+interface TaskColumn {
+  label: string;
+  status: string;
+  color: string;
+  items: TaskItem[];
 }
 
 function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   return `${days}d ago`;
 }
-
-const quickActions = [
-  { label: "Ask Atlas", icon: Bot, route: "/chat" },
-  { label: "Review PRs", icon: GitPullRequest, route: "/activity" },
-  { label: "Check Slack", icon: MessageSquare, route: "/activity" },
-  { label: "Meeting Prep", icon: Calendar, route: "/chat" },
-];
-
-const integrationIcons: Record<string, typeof Github> = {
-  github: Github,
-  discord: MessageSquare,
-  slack: MessageSquare,
-  notion: FileText,
-  google: Mail,
-};
 
 function integrationDotColor(status: string): string {
   if (status === "connected") return "bg-emerald-500";
@@ -123,12 +107,194 @@ function DashboardClock() {
 }
 
 function formatUptime(ms: number | undefined): string {
-  if (!ms) return "—";
+  if (!ms) return "--";
   const totalSeconds = Math.floor(ms / 1000);
   const d = Math.floor(totalSeconds / 86400);
   const h = Math.floor((totalSeconds % 86400) / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
   return `${d}d ${h}h ${m}m`;
+}
+
+// --- Activity Feed: transform raw data into human-readable items ---
+
+interface ActivityItem {
+  id: string;
+  icon: "pr" | "commit" | "merge" | "ci-fail" | "ci-pass" | "agent" | "system" | "alert";
+  text: string;
+  detail?: string;
+  time: string;
+  actionRoute?: string;
+}
+
+function buildActivityFeed(
+  github: GitHubData | null,
+  gatewayEvents: { id: string; type: string; title: string; description?: string; timestamp: Date; integration: string }[],
+): ActivityItem[] {
+  const items: ActivityItem[] = [];
+
+  // GitHub PRs as activity
+  if (github?.prs) {
+    for (const pr of github.prs) {
+      if (pr.state === "open") {
+        if (pr.ci?.failing && pr.ci.failing > 0) {
+          items.push({
+            id: `pr-ci-${pr.url}`,
+            icon: "ci-fail",
+            text: `${pr.ci.failing} CI check${pr.ci.failing > 1 ? "s" : ""} failing on "${pr.title}"`,
+            detail: `${pr.repoName} -- ${pr.ci.failedChecks.map((c) => c.name).join(", ")}`,
+            time: pr.updatedAt || pr.createdAt,
+            actionRoute: "/github",
+          });
+        } else if (pr.ci?.passing && pr.ci.passing > 0) {
+          items.push({
+            id: `pr-pass-${pr.url}`,
+            icon: "ci-pass",
+            text: `All ${pr.ci.passing} checks passing on "${pr.title}"`,
+            detail: pr.repoName,
+            time: pr.updatedAt || pr.createdAt,
+            actionRoute: "/github",
+          });
+        } else {
+          items.push({
+            id: `pr-open-${pr.url}`,
+            icon: "pr",
+            text: `Open PR: "${pr.title}"`,
+            detail: pr.repoName,
+            time: pr.updatedAt || pr.createdAt,
+            actionRoute: "/github",
+          });
+        }
+      } else if (pr.state === "merged") {
+        items.push({
+          id: `pr-merged-${pr.url}`,
+          icon: "merge",
+          text: `Merged: "${pr.title}"`,
+          detail: pr.repoName,
+          time: pr.updatedAt || pr.createdAt,
+        });
+      }
+    }
+  }
+
+  // GitHub commits as activity
+  if (github?.commits) {
+    for (const c of github.commits.slice(0, 5)) {
+      items.push({
+        id: `commit-${c.sha}`,
+        icon: "commit",
+        text: `${c.author} pushed "${c.message}"`,
+        detail: "atlas-console",
+        time: c.date,
+      });
+    }
+  }
+
+  // Gateway events transformed into readable items
+  for (const event of gatewayEvents.slice(0, 10)) {
+    if (event.type === "alert") {
+      items.push({
+        id: event.id,
+        icon: "alert",
+        text: event.title,
+        detail: event.description,
+        time: event.timestamp.toISOString(),
+      });
+    } else if (event.integration !== "system" || event.title !== "health") {
+      items.push({
+        id: event.id,
+        icon: event.integration === "github" ? "commit" : "system",
+        text: event.title,
+        detail: event.description,
+        time: event.timestamp.toISOString(),
+      });
+    }
+  }
+
+  // Sort by time descending
+  items.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+  return items;
+}
+
+const activityIconMap = {
+  pr: GitPullRequest,
+  commit: GitCommit,
+  merge: GitMerge,
+  "ci-fail": XCircle,
+  "ci-pass": CheckCircle2,
+  agent: Bot,
+  system: Zap,
+  alert: AlertTriangle,
+};
+
+const activityColorMap: Record<string, string> = {
+  pr: "text-emerald-400",
+  commit: "text-blue-400",
+  merge: "text-violet-400",
+  "ci-fail": "text-red-400",
+  "ci-pass": "text-emerald-400",
+  agent: "text-amber-400",
+  system: "text-muted-foreground",
+  alert: "text-red-400",
+};
+
+// --- Task Board: parse master-task-breakdown.md ---
+
+function parseTaskBreakdown(content: string): TaskColumn[] {
+  const columns: TaskColumn[] = [
+    { label: "In Progress", status: "in-progress", color: "border-blue-500/50", items: [] },
+    { label: "Blocked", status: "blocked", color: "border-red-500/50", items: [] },
+    { label: "Up Next", status: "next", color: "border-amber-500/50", items: [] },
+  ];
+
+  const lines = content.split("\n");
+  let currentStatus: string | null = null;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Detect section headers
+    const lower = trimmed.toLowerCase();
+    if (lower.includes("in progress") || lower.includes("in-progress") || lower.includes("active")) {
+      currentStatus = "in-progress";
+      continue;
+    }
+    if (lower.includes("blocked") || lower.includes("waiting")) {
+      currentStatus = "blocked";
+      continue;
+    }
+    if (lower.includes("up next") || lower.includes("backlog") || lower.includes("todo") || lower.includes("planned")) {
+      currentStatus = "next";
+      continue;
+    }
+    if (lower.includes("done") || lower.includes("completed") || lower.includes("shipped")) {
+      currentStatus = "done";
+      continue;
+    }
+
+    // Parse task items (- [ ] or - [x] or just - items)
+    const taskMatch = trimmed.match(/^[-*]\s*(?:\[([x ]?)\])?\s*(.+)/i);
+    if (taskMatch && currentStatus && currentStatus !== "done") {
+      const checked = taskMatch[1] === "x";
+      let title = taskMatch[2].trim();
+      let agent: string | undefined;
+
+      // Extract agent assignment like (@atlas-zeta-dev) or [atlas-platform-eng]
+      const agentMatch = title.match(/[\[@]([a-z-]+(?:-[a-z]+)*)[)\]]/i);
+      if (agentMatch) {
+        agent = agentMatch[1];
+        title = title.replace(/\s*[\[@][a-z-]+(?:-[a-z]+)*[)\]]/i, "").trim();
+      }
+
+      if (!checked) {
+        const col = columns.find((c) => c.status === currentStatus);
+        if (col) {
+          col.items.push({ title, status: currentStatus as TaskItem["status"], agent });
+        }
+      }
+    }
+  }
+
+  return columns.filter((c) => c.items.length > 0);
 }
 
 export default function DashboardPage({ onNavigate }: DashboardProps) {
@@ -139,6 +305,8 @@ export default function DashboardPage({ onNavigate }: DashboardProps) {
   const [config, setConfig] = useState<Record<string, unknown> | null>(null);
   const [github, setGithub] = useState<GitHubData | null>(null);
   const [githubLoading, setGithubLoading] = useState(true);
+  const [taskColumns, setTaskColumns] = useState<TaskColumn[]>([]);
+  const [taskLoading, setTaskLoading] = useState(true);
 
   useEffect(() => {
     fetch("/api/config").then((r) => r.json()).then(setConfig).catch(() => {});
@@ -147,6 +315,15 @@ export default function DashboardPage({ onNavigate }: DashboardProps) {
       .then((d: GitHubData) => setGithub(d))
       .catch(() => {})
       .finally(() => setGithubLoading(false));
+    fetch("/api/memory/master-task-breakdown.md")
+      .then((r) => r.json())
+      .then((d: { content?: string }) => {
+        if (d.content) {
+          setTaskColumns(parseTaskBreakdown(d.content));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setTaskLoading(false));
   }, []);
 
   const agents = useMemo(() => {
@@ -154,434 +331,185 @@ export default function DashboardPage({ onNavigate }: DashboardProps) {
     return list ?? [];
   }, [config]);
 
-  const recentActivity = activityEvents.slice(0, 8);
+  // Build integration status inline
+  const integrationDots = useMemo(() => {
+    const dots: { name: string; status: string }[] = [];
 
-  const channelList = useMemo(() => {
+    // From channels
     if (channels.length > 0) {
-      return channels.map((ch) => {
-        let derivedStatus = "disconnected";
-        if (ch.running && ch.configured) derivedStatus = "connected";
-        else if (ch.configured && !ch.running && ch.lastError) derivedStatus = "error";
-        else if (!ch.configured) derivedStatus = "not configured";
-        return {
-          name: ch.label || ch.channelType || ch.accountId,
-          status: derivedStatus,
-          icon: integrationIcons[ch.channelType?.toLowerCase()] || MessageSquare,
-          detail: ch.lastError || undefined,
-          channelType: ch.channelType,
-        };
-      });
+      for (const ch of channels) {
+        let s = "disconnected";
+        if (ch.running && ch.configured) s = "connected";
+        else if (ch.configured && !ch.running && ch.lastError) s = "error";
+        dots.push({ name: ch.label || ch.channelType || ch.accountId, status: s });
+      }
+    } else if (config?.channels) {
+      for (const [key, ch] of Object.entries(config.channels as Record<string, Record<string, unknown>>)) {
+        dots.push({ name: key, status: ch.enabled ? "connected" : "disconnected" });
+      }
     }
-    // Fallback: derive from config channels
-    if (config?.channels) {
-      return Object.entries(config.channels as Record<string, Record<string, unknown>>).map(([key, ch]) => ({
-        name: key.charAt(0).toUpperCase() + key.slice(1),
-        status: ch.enabled ? "connected" : "disconnected",
-        icon: integrationIcons[key.toLowerCase()] || MessageSquare,
-        detail: undefined as string | undefined,
-        channelType: key,
-      }));
-    }
-    return [] as { name: string; status: string; icon: typeof Github; detail?: string; channelType?: string }[];
-  }, [channels, config]);
 
-  // Add GitHub to integrations list
-  const allIntegrations = useMemo(() => {
-    const list = [...channelList];
+    // GitHub
     if (github) {
-      list.push({
-        name: "GitHub",
-        status: github.authenticated ? "connected" : "error",
-        icon: Github,
-        detail: github.authenticated ? `@${github.user}` : (github.error || "not authenticated"),
-        channelType: "github",
-      });
-    } else if (githubLoading) {
-      list.push({
-        name: "GitHub",
-        status: "connecting",
-        icon: Github,
-        detail: undefined,
-        channelType: "github",
-      });
+      dots.push({ name: "GitHub", status: github.authenticated ? "connected" : "error" });
     }
-    return list;
-  }, [channelList, github, githubLoading]);
+
+    return dots;
+  }, [channels, config, github]);
+
+  // Build activity feed
+  const activityFeed = useMemo(
+    () => buildActivityFeed(github, activityEvents),
+    [github, activityEvents],
+  );
 
   return (
-    <div className="space-y-4">
-      {/* Top Status Strip */}
-      <div className="flex items-center gap-4 px-1 py-1">
+    <div className="space-y-6">
+      {/* Compact Status Bar */}
+      <div className="flex items-center gap-3 px-1">
         <div className="flex items-center gap-1.5">
           <span
             className={`h-2 w-2 rounded-full ${status === "connected" ? "bg-emerald-500" : status === "connecting" ? "bg-yellow-500 animate-pulse" : "bg-red-500"}`}
           />
           <span className="text-[11px] font-mono text-muted-foreground">Gateway</span>
         </div>
-        <Badge variant="secondary" className="font-mono text-[10px] px-2 py-0">
-          Sessions: {sessions.length}
-        </Badge>
-        <DashboardClock />
+        <span className="text-[10px] font-mono text-muted-foreground/40">|</span>
         <span className="text-[10px] font-mono text-muted-foreground/50">
-          Uptime: {formatUptime(gatewayInfo?.uptimeMs)}
+          {formatUptime(gatewayInfo?.uptimeMs)} uptime
         </span>
+        <span className="text-[10px] font-mono text-muted-foreground/40">|</span>
+        <span className="text-[10px] font-mono text-muted-foreground/50">
+          {sessions.length} session{sessions.length !== 1 ? "s" : ""}
+        </span>
+        <span className="text-[10px] font-mono text-muted-foreground/40">|</span>
+        <span className="text-[10px] font-mono text-muted-foreground/50">
+          {agents.length} agent{agents.length !== 1 ? "s" : ""}
+        </span>
+
+        {/* Integration dots inline */}
+        <div className="flex items-center gap-2 ml-auto">
+          {integrationDots.map((d) => (
+            <div key={d.name} className="flex items-center gap-1" title={`${d.name}: ${d.status}`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${integrationDotColor(d.status)}`} />
+              <span className="text-[9px] font-mono text-muted-foreground/40">{d.name}</span>
+            </div>
+          ))}
+          <span className="text-[10px] font-mono text-muted-foreground/40">|</span>
+          <DashboardClock />
+        </div>
       </div>
 
-      {/* Main Grid: 60/40 */}
-      <div className="grid grid-cols-[1fr_0.67fr] gap-4">
-        {/* LEFT COLUMN */}
-        <div className="space-y-4">
-          {/* Active Agents */}
-          <section>
-            <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
-              Agents ({agents.length})
-            </h3>
-            <div className="flex gap-2">
-              {agents.length > 0 ? (
-                agents.slice(0, 4).map((agent) => {
-                  const name = (agent.name as string) || (agent.id as string) || "Unknown";
-                  const colors = ["bg-emerald-500", "bg-violet-500", "bg-amber-500", "bg-blue-500"];
-                  const colorIdx = name.charCodeAt(0) % colors.length;
-                  return (
-                    <button
-                      key={agent.id as string}
-                      onClick={() => onNavigate?.("/agents")}
-                      className="flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-border bg-card hover:border-muted-foreground/30 transition-colors text-left"
-                    >
-                      <div className={`h-7 w-7 rounded-lg ${colors[colorIdx]} flex items-center justify-center shrink-0`}>
-                        <span className="text-xs font-bold text-white">{name[0]?.toUpperCase()}</span>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-medium">{name}</span>
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 status-pulse" />
-                        </div>
-                        <p className="text-[10px] font-mono text-muted-foreground truncate">
-                          {(agent.model as string)?.split("/").pop() || "—"}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })
-              ) : (
-                <div className="flex items-center gap-2 px-3 py-2.5 text-muted-foreground/50 text-sm">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading agents...
-                </div>
-              )}
-            </div>
-          </section>
+      {/* Intelligent Activity Feed — HERO */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-medium text-foreground">Activity</h2>
+          <button
+            onClick={() => onNavigate?.("/activity")}
+            className="text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors flex items-center gap-1"
+          >
+            View all <ArrowRight className="h-3 w-3" />
+          </button>
+        </div>
 
-          {/* Priority Queue / Alerts */}
-          {activityEvents.filter((e) => e.type === "alert").length > 0 && (
-            <section>
-              <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
-                Alerts
-              </h3>
-              <div className="space-y-1.5">
-                {activityEvents
-                  .filter((e) => e.type === "alert")
-                  .slice(0, 4)
-                  .map((item) => (
+        <div className="rounded-xl border border-border bg-card/50">
+          {githubLoading ? (
+            <div className="flex items-center gap-2 px-4 py-8 justify-center text-muted-foreground/50 text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Building activity feed...
+            </div>
+          ) : activityFeed.length > 0 ? (
+            <div className="divide-y divide-border/50">
+              {activityFeed.slice(0, 12).map((item) => {
+                const Icon = activityIconMap[item.icon];
+                const color = activityColorMap[item.icon];
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => item.actionRoute && onNavigate?.(item.actionRoute)}
+                    className={`w-full flex items-start gap-3 px-4 py-3 text-left transition-colors ${item.actionRoute ? "hover:bg-accent/30 cursor-pointer" : "cursor-default"}`}
+                  >
+                    <div className={`mt-0.5 shrink-0 ${color}`}>
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] leading-snug">{item.text}</p>
+                      {item.detail && (
+                        <p className="text-[11px] text-muted-foreground/50 mt-0.5 truncate">{item.detail}</p>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-mono text-muted-foreground/40 shrink-0 mt-0.5">
+                      {timeAgo(item.time)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground/40">
+              {status === "connected"
+                ? "No activity yet. Events from GitHub, agents, and integrations will appear here."
+                : "Connect to gateway to see activity."}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Task Board Preview */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Columns3 className="h-4 w-4 text-muted-foreground/50" />
+            <h2 className="text-sm font-medium text-foreground">Task Board</h2>
+          </div>
+        </div>
+
+        {taskLoading ? (
+          <div className="flex items-center gap-2 px-4 py-6 text-muted-foreground/50 text-sm">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading tasks...
+          </div>
+        ) : taskColumns.length > 0 ? (
+          <div className="grid grid-cols-3 gap-3">
+            {taskColumns.map((col) => (
+              <div key={col.status} className={`rounded-lg border ${col.color} bg-card/30 p-3`}>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60">
+                    {col.label}
+                  </h3>
+                  <Badge variant="secondary" className="text-[9px] px-1.5 py-0 font-mono">
+                    {col.items.length}
+                  </Badge>
+                </div>
+                <div className="space-y-2">
+                  {col.items.slice(0, 5).map((task, i) => (
                     <div
-                      key={item.id}
-                      className="flex items-start gap-3 px-3 py-2.5 rounded-lg border border-border bg-card border-l-2 border-l-red-500"
+                      key={i}
+                      className="px-3 py-2 rounded-md bg-background/50 border border-border/50"
                     >
-                      <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0 text-red-400" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium">{item.title}</p>
-                        {item.description && (
-                          <p className="text-[11px] text-muted-foreground truncate">{item.description}</p>
-                        )}
-                      </div>
-                      <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0 mt-0.5">
-                        {item.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
+                      <p className="text-[12px] leading-snug">{task.title}</p>
+                      {task.agent && (
+                        <div className="flex items-center gap-1 mt-1.5">
+                          <Bot className="h-3 w-3 text-violet-400/60" />
+                          <span className="text-[10px] font-mono text-violet-400/60">{task.agent}</span>
+                        </div>
+                      )}
                     </div>
                   ))}
-              </div>
-            </section>
-          )}
-
-          {/* Recent Activity */}
-          <section>
-            <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
-              Recent Activity
-            </h3>
-            <div className="space-y-0.5">
-              {recentActivity.length > 0 ? (
-                recentActivity.map((event) => {
-                  const iconMap: Record<string, typeof Github> = {
-                    github: Github,
-                    slack: MessageSquare,
-                    discord: MessageSquare,
-                    notion: FileText,
-                    system: Brain,
-                  };
-                  const Icon = iconMap[event.integration] || Zap;
-                  const colorMap: Record<string, string> = {
-                    github: "text-github",
-                    slack: "text-slack",
-                    discord: "text-indigo-400",
-                    notion: "text-notion",
-                    system: "text-emerald-400",
-                  };
-                  return (
-                    <div
-                      key={event.id}
-                      className="flex items-center gap-2.5 px-3 py-1.5 rounded-md hover:bg-accent/30 transition-colors"
-                    >
-                      <Icon className={`h-3.5 w-3.5 shrink-0 ${colorMap[event.integration] || "text-muted-foreground"}`} />
-                      <span className="text-[13px] truncate flex-1">{event.title}</span>
-                      <span className="text-[10px] font-mono text-muted-foreground/50 shrink-0">
-                        {event.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="px-3 py-4 text-sm text-muted-foreground/50">
-                  {status === "connected" ? "No activity yet — events will appear as they happen." : "Connect to gateway to see activity."}
+                  {col.items.length > 5 && (
+                    <p className="text-[10px] text-muted-foreground/40 text-center py-1">
+                      +{col.items.length - 5} more
+                    </p>
+                  )}
                 </div>
-              )}
-            </div>
-          </section>
-          {/* GitHub Activity */}
-          <section>
-            <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
-              GitHub
-            </h3>
-            {githubLoading ? (
-              <div className="flex items-center gap-2 px-3 py-4 text-muted-foreground/50 text-sm">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading GitHub data...
               </div>
-            ) : github?.authenticated ? (
-              <div className="space-y-3">
-                {/* Recent PRs */}
-                {github.prs.length > 0 && (
-                  <div className="rounded-lg border border-border bg-card">
-                    <div className="px-3 py-1.5 border-b border-border">
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
-                        Pull Requests
-                      </span>
-                    </div>
-                    <div className="divide-y divide-border">
-                      {github.prs.slice(0, 5).map((pr, i) => (
-                        <div key={i} className="group">
-                          <a
-                            href={pr.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-start gap-2.5 px-3 py-2 hover:bg-accent/30 transition-colors"
-                          >
-                            <GitPullRequest className="h-3.5 w-3.5 mt-0.5 shrink-0 text-muted-foreground/50" />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[13px] truncate">{pr.title}</span>
-                                <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-50 transition-opacity" />
-                              </div>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <span className="text-[10px] font-mono text-muted-foreground/50">{pr.repoName}</span>
-                                <Badge variant="secondary" className={`text-[9px] px-1.5 py-0 ${prStateBadge(pr.state)}`}>
-                                  {pr.state}
-                                </Badge>
-                                {pr.ci && (
-                                  <span className="flex items-center gap-1">
-                                    {pr.ci.failing > 0 ? (
-                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-red-500/15 text-red-400 border-red-500/20">
-                                        ✗ {pr.ci.failing} failed
-                                      </Badge>
-                                    ) : pr.ci.passing > 0 ? (
-                                      <Badge variant="secondary" className="text-[9px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border-emerald-500/20">
-                                        ✓ {pr.ci.passing} passed
-                                      </Badge>
-                                    ) : null}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <span className="text-[10px] font-mono text-muted-foreground/40 shrink-0 mt-0.5">
-                              {timeAgo(pr.updatedAt || pr.createdAt)}
-                            </span>
-                          </a>
-                          {/* CI Failure Details + Fix Button */}
-                          {pr.ci && pr.ci.failing > 0 && (
-                            <div className="mx-3 mb-2 rounded-md border border-red-500/20 bg-red-500/5 px-3 py-2">
-                              <div className="space-y-1">
-                                {pr.ci.failedChecks.map((check, ci) => (
-                                  <div key={ci} className="flex items-center gap-2">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-red-400 shrink-0" />
-                                    <a
-                                      href={check.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-[11px] text-red-400/80 hover:text-red-300 truncate"
-                                    >
-                                      {check.name}
-                                    </a>
-                                    {check.duration && (
-                                      <span className="text-[9px] font-mono text-muted-foreground/40">{check.duration}</span>
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                              <button
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  // TODO: wire to agent dispatch
-                                  alert(`Would dispatch atlas-zeta-dev to fix CI failures on ${pr.repoName}#${pr.url.split("/").pop()}`);
-                                }}
-                                className="mt-2 flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-violet-500/15 border border-violet-500/25 text-violet-400 text-[11px] font-medium hover:bg-violet-500/25 transition-colors"
-                              >
-                                <Bot className="h-3 w-3" />
-                                Fix with atlas-zeta-dev
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Recent Commits */}
-                {github.commits.length > 0 && (
-                  <div className="rounded-lg border border-border bg-card">
-                    <div className="px-3 py-1.5 border-b border-border">
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
-                        Recent Commits (atlas-console)
-                      </span>
-                    </div>
-                    <div className="divide-y divide-border">
-                      {github.commits.slice(0, 5).map((c, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center gap-2.5 px-3 py-1.5"
-                        >
-                          <GitCommit className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
-                          <code className="text-[10px] font-mono text-violet-400/70">{c.sha}</code>
-                          <span className="text-[12px] truncate flex-1">{c.message}</span>
-                          <span className="text-[10px] font-mono text-muted-foreground/40 shrink-0">
-                            {timeAgo(c.date)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Repos */}
-                {github.repos.length > 0 && (
-                  <div className="rounded-lg border border-border bg-card">
-                    <div className="px-3 py-1.5 border-b border-border">
-                      <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground/50">
-                        Repos
-                      </span>
-                    </div>
-                    <div className="divide-y divide-border">
-                      {github.repos.slice(0, 5).map((r, i) => (
-                        <div
-                          key={i}
-                          className="flex items-center gap-2.5 px-3 py-1.5"
-                        >
-                          {r.isPrivate ? (
-                            <Lock className="h-3 w-3 shrink-0 text-amber-400/50" />
-                          ) : (
-                            <Globe className="h-3 w-3 shrink-0 text-muted-foreground/40" />
-                          )}
-                          <span className="text-[13px] font-mono">{r.name}</span>
-                          <span className="text-[10px] text-muted-foreground/40 truncate flex-1">{r.description || ""}</span>
-                          <span className="text-[10px] font-mono text-muted-foreground/40 shrink-0">
-                            {timeAgo(r.pushedAt)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="px-3 py-3 rounded-lg border border-border bg-card text-sm text-muted-foreground/50">
-                GitHub CLI not authenticated. Run <code className="text-xs bg-secondary px-1 py-0.5 rounded">gh auth login</code> to connect.
-              </div>
-            )}
-          </section>
-        </div>
-
-        {/* RIGHT COLUMN */}
-        <div className="space-y-4">
-          {/* Quick Actions */}
-          <section>
-            <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
-              Quick Actions
-            </h3>
-            <div className="grid grid-cols-2 gap-2">
-              {quickActions.map((action) => (
-                <button
-                  key={action.label}
-                  onClick={() => onNavigate?.(action.route)}
-                  className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-lg border border-border bg-card hover:border-muted-foreground/30 hover:shadow-[0_0_12px_rgba(255,255,255,0.03)] transition-all"
-                >
-                  <action.icon className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-xs font-medium">{action.label}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Stats */}
-          <section>
-            <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
-              Stats
-            </h3>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { label: "Messages", value: String(activityEvents.filter((e) => e.integration !== "system").length), icon: MessageSquare },
-                { label: "Sessions", value: String(sessions.length), icon: GitPullRequest },
-                { label: "Agents", value: String(agents.length), icon: Brain },
-                { label: "Integrations", value: String(allIntegrations.length), icon: Zap },
-              ].map((stat) => (
-                <div key={stat.label} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-card">
-                  <stat.icon className="h-3.5 w-3.5 text-muted-foreground/50" />
-                  <span className="text-lg font-mono font-semibold">{stat.value}</span>
-                  <span className="text-[10px] text-muted-foreground/60">{stat.label}</span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Integration Status */}
-          <section>
-            <h3 className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground/60 mb-2 px-1">
-              Integrations
-            </h3>
-            <div className="rounded-lg border border-border bg-card divide-y divide-border">
-              {allIntegrations.length > 0 ? (
-                allIntegrations.map((int) => (
-                  <div key={int.name} className="flex items-center gap-2.5 px-3 py-2">
-                    <int.icon className="h-3.5 w-3.5 text-muted-foreground/50" />
-                    <span className="text-sm flex-1">{int.name}</span>
-                    {int.detail && (
-                      <span className="text-[10px] font-mono text-muted-foreground/40 truncate max-w-24">
-                        {int.detail}
-                      </span>
-                    )}
-                    <span className={`h-2 w-2 rounded-full ${integrationDotColor(int.status as string)}`} />
-                    <span className="text-[10px] font-mono text-muted-foreground/50 w-24 text-right">
-                      {int.status as string}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <div className="px-3 py-3 text-sm text-muted-foreground/50">
-                  {status === "connected" ? "No integrations configured" : "Connecting..."}
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
-      </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg border border-border bg-card/30 px-4 py-6 text-center text-sm text-muted-foreground/40">
+            No task breakdown found. Add a master-task-breakdown.md to your workspace memory.
+          </div>
+        )}
+      </section>
     </div>
   );
 }

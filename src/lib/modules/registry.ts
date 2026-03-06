@@ -6,6 +6,7 @@ import ActivityPage from "@/modules/activity/page";
 import ChatPage from "@/modules/chat/page";
 import MemoryPage from "@/modules/memory/page";
 import SettingsPage from "@/modules/settings/page";
+import GitHubPage from "@/modules/github/page";
 
 import dashboardManifest from "@/modules/dashboard/module.json";
 import agentsManifest from "@/modules/agents/module.json";
@@ -13,9 +14,11 @@ import activityManifest from "@/modules/activity/module.json";
 import chatManifest from "@/modules/chat/module.json";
 import memoryManifest from "@/modules/memory/module.json";
 import settingsManifest from "@/modules/settings/module.json";
+import githubManifest from "@/modules/github/module.json";
 
 const modules: ModuleDefinition[] = [
   { ...dashboardManifest, id: "dashboard", component: DashboardPage },
+  { ...githubManifest, id: "github", component: GitHubPage },
   { ...agentsManifest, id: "agents", component: AgentsPage },
   { ...activityManifest, id: "activity", component: ActivityPage },
   { ...chatManifest, id: "chat", component: ChatPage },

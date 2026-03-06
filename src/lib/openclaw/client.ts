@@ -82,7 +82,8 @@ export class OpenClawClient {
           this.scheduleReconnect();
         };
 
-        this.ws.onerror = () => {
+        this.ws.onerror = (e) => {
+          console.error("[OpenClaw WS] Error:", e);
           this.setStatus("error");
         };
       } catch {
@@ -169,6 +170,7 @@ export class OpenClawClient {
   private handleEvent(event: GatewayEvent): void {
     const eventName = event.event;
     const payload = event.payload ?? {};
+    console.log("[OpenClaw WS] Event:", eventName);
 
     if (eventName === "connect.challenge") {
       this.sendConnectRequest(payload);
@@ -187,6 +189,8 @@ export class OpenClawClient {
 
     this.pending.delete(id);
     clearTimeout(pending.timer);
+
+    console.log("[OpenClaw WS] Response:", res.ok ? "ok" : "fail", res.ok ? "" : JSON.stringify(res.error));
 
     if (res.ok && res.payload) {
       // Check if this is the hello-ok connect response
@@ -243,17 +247,10 @@ export class OpenClawClient {
         client: {
           id: "webchat-ui",
           version: "1.0.0",
-          platform: "macos",
+          platform: typeof navigator !== "undefined" ? navigator.platform : "web",
           mode: "webchat",
         },
-        role: "operator",
-        scopes: ["operator.read", "operator.write"],
-        caps: [],
-        commands: [],
-        permissions: {},
         auth: { token: this.config.token },
-        locale: "en-US",
-        userAgent: "atlas-console/1.0.0",
       },
     });
   }

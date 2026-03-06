@@ -353,8 +353,8 @@ export default function ChatPage() {
             <EmptyChat />
           ) : (
             <div className="py-4">
-              {messages.map((msg) => (
-                <MessageBubble key={msg.id} message={msg} />
+              {messages.map((msg, i) => (
+                <MessageBubble key={msg.id || `msg-${i}`} message={msg} />
               ))}
               {streamingContent && <TypingIndicator content={streamingContent} />}
               <div ref={messagesEndRef} />

@@ -149,7 +149,7 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
           }
           if (finalContent) {
             const chatMsg: ChatMessage = {
-              id: chatEvent.runId || uuid(),
+              id: chatEvent.runId || `atlas-${Date.now()}`,
               role: "atlas",
               content: finalContent,
               timestamp: new Date(),
@@ -199,10 +199,8 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
     client.connect().then((hello) => {
       const { snapshot, protocol, features } = hello;
 
-      // Use session key from snapshot defaults if available
-      if (snapshot.sessionDefaults?.mainKey) {
-        sessionKeyRef.current = snapshot.sessionDefaults.mainKey;
-      }
+      // Keep our own session key — don't use the main atlas session
+      // The webchat-ui client gets its own session via chat.send
 
       setGatewayInfo({
         uptimeMs: snapshot.uptimeMs,

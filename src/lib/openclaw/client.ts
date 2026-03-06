@@ -171,7 +171,6 @@ export class OpenClawClient {
   private handleEvent(event: GatewayEvent): void {
     const eventName = event.event;
     const payload = event.payload ?? {};
-    console.log("[OpenClaw WS] Event:", eventName);
 
     if (eventName === "connect.challenge") {
       this.sendConnectRequest(payload);
@@ -187,7 +186,7 @@ export class OpenClawClient {
     const id = res.id;
     const pending = this.pending.get(id);
 
-    console.log("[OpenClaw WS] Response:", res.ok ? "ok" : "fail", res.ok ? "" : JSON.stringify(res.error));
+    if (!res.ok) console.error("[OpenClaw WS] Request failed:", JSON.stringify(res.error));
 
     // Even if no pending request, we might receive a connect payload
     if (res.ok && res.payload) {

@@ -62,6 +62,17 @@ interface OpenClawProviderProps {
 
 const SESSION_KEY = "atlas-console";
 
+// uuid() only works on HTTPS — fallback for HTTP
+function uuid(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return uuid();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 export function OpenClawProvider({ children }: OpenClawProviderProps) {
   const clientRef = useRef<OpenClawClient | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>("disconnected");
@@ -138,7 +149,7 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
           }
           if (finalContent) {
             const chatMsg: ChatMessage = {
-              id: chatEvent.runId || crypto.randomUUID(),
+              id: chatEvent.runId || uuid(),
               role: "atlas",
               content: finalContent,
               timestamp: new Date(),
@@ -156,7 +167,7 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
       } else if (state === "error") {
         setStreamingContent(null);
         const errorMsg: ChatMessage = {
-          id: crypto.randomUUID(),
+          id: uuid(),
           role: "atlas",
           content: `Error: ${chatEvent.errorMessage || "Unknown error"}`,
           timestamp: new Date(),
@@ -173,7 +184,7 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
 
       const d = payload ?? raw;
       const event: ActivityEvent = {
-        id: crypto.randomUUID(),
+        id: uuid(),
         type: mapActivityType(d.type as string),
         integration: mapIntegration(eventName, d.integration as string),
         title: (d.title as string) || (d.text as string) || eventName,
@@ -296,7 +307,7 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
     if (!client) return;
 
     const msg: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: uuid(),
       role: "user",
       content,
       timestamp: new Date(),
@@ -305,7 +316,7 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
     client.request("chat.send", {
       sessionKey: sessionKeyRef.current,
       message: content,
-      idempotencyKey: crypto.randomUUID(),
+      idempotencyKey: uuid(),
     }).catch(() => {});
   }, []);
 

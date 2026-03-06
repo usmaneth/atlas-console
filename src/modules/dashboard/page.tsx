@@ -480,7 +480,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div>
         <h1 className="font-serif text-3xl font-bold tracking-tight">
-          Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, Usman
+          Command Center
         </h1>
         <p className="text-sm text-muted-foreground/60 mt-1">Here&apos;s what needs your attention.</p>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { useGateway } from "@/lib/openclaw/hooks";
 import { getModules } from "@/lib/modules/registry";
@@ -46,6 +46,10 @@ export function Sidebar({ currentRoute, onNavigate }: SidebarProps) {
   const { status } = useGateway();
   const { theme, setTheme } = useTheme();
   const [collapsed, setCollapsed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Prevent hydration mismatch — theme is unknown on server
+  useEffect(() => setMounted(true), []);
 
   return (
     <aside
@@ -128,12 +132,12 @@ export function Sidebar({ currentRoute, onNavigate }: SidebarProps) {
                 collapsed ? "px-0 py-2.5 justify-center" : "px-3 py-2.5"
               }`}
             >
-              {theme === "dark" ? (
+              {mounted && theme === "dark" ? (
                 <Sun className="h-[18px] w-[18px] shrink-0" />
               ) : (
                 <Moon className="h-[18px] w-[18px] shrink-0" />
               )}
-              {!collapsed && (
+              {!collapsed && mounted && (
                 <span className="text-[13px] font-medium">
                   {theme === "dark" ? "Light mode" : "Dark mode"}
                 </span>

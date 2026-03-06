@@ -39,7 +39,7 @@ function ConnectionIndicator({ status }: { status: string }) {
     status === "connected"
       ? "bg-emerald-500"
       : status === "connecting"
-        ? "bg-yellow-500 animate-pulse"
+        ? "bg-amber-500 animate-pulse"
         : "bg-red-500";
 
   return (
@@ -68,10 +68,10 @@ export function Sidebar({ currentRoute, onNavigate }: SidebarProps) {
   );
 
   return (
-    <aside className="flex flex-col items-center w-14 bg-sidebar border-r border-sidebar-border py-3 gap-1">
-      {/* Logo/Brand */}
-      <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-sidebar-accent mb-4">
-        <span className="text-sm font-bold text-sidebar-accent-foreground">
+    <aside className="flex flex-col items-center w-[60px] bg-sidebar border-r border-sidebar-border py-4 gap-1.5">
+      {/* Logo — Playfair "A" with warm glow */}
+      <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-gradient-to-br from-warm-gold/20 to-warm-amber/10 border border-warm-gold/20 logo-glow mb-5">
+        <span className="font-serif text-lg font-bold text-warm-gold">
           A
         </span>
       </div>
@@ -87,20 +87,22 @@ export function Sidebar({ currentRoute, onNavigate }: SidebarProps) {
               <TooltipTrigger asChild>
                 <button
                   onClick={() => handleNav(mod.route)}
-                  className={`flex items-center justify-center h-10 w-10 rounded-lg transition-colors ${
+                  className={`flex items-center justify-center h-10 w-10 rounded-xl transition-all duration-200 ${
                     isActive
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+                      ? "bg-warm-gold/15 text-warm-gold border border-warm-gold/20 shadow-[0_0_8px_-2px_rgba(212,165,116,0.2)]"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
                   }`}
                 >
                   {Icon ? (
-                    <Icon className="h-5 w-5" />
+                    <Icon className={`h-[18px] w-[18px] ${isActive ? "" : "opacity-70"}`} />
                   ) : (
-                    <span className="text-xs">{mod.name[0]}</span>
+                    <span className="text-xs font-medium">{mod.name[0]}</span>
                   )}
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">{mod.name}</TooltipContent>
+              <TooltipContent side="right" className="font-sans text-xs">
+                {mod.name}
+              </TooltipContent>
             </Tooltip>
           );
         })}

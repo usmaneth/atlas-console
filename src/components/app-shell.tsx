@@ -19,17 +19,20 @@ export function AppShell() {
   const currentModule = getModuleByRoute(currentRoute);
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar currentRoute={currentRoute} onNavigate={navigate} />
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="flex items-center h-12 px-6 border-b border-border shrink-0">
-          <h1 className="text-sm font-medium text-foreground">
+        {/* Header — editorial style */}
+        <header className="flex items-center justify-between h-14 px-8 border-b border-border/60 shrink-0">
+          <h1 className="font-serif text-lg font-medium tracking-tight text-foreground">
             {currentModule?.name ?? "Atlas Console"}
           </h1>
+          <span className="font-data text-[10px] text-muted-foreground/40 tracking-wider uppercase">
+            Atlas Console
+          </span>
         </header>
         {/* Content */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto px-8 py-6">
           <CurrentPage onNavigate={navigate} />
         </div>
       </main>

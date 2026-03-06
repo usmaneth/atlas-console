@@ -182,6 +182,10 @@ function EmptyChat() {
         {["What PRs need my attention?", "Summarize today's Slack activity", "Review the Anuma roadmap", "What should I focus on today?"].map((suggestion) => (
           <button
             key={suggestion}
+            onClick={() => {
+              const event = new CustomEvent("atlas-suggestion", { detail: suggestion });
+              window.dispatchEvent(event);
+            }}
             className="px-3 py-1.5 rounded-xl border border-border/30 text-[12px] text-muted-foreground/60 hover:text-foreground hover:border-warm-gold/30 hover:bg-warm-gold/5 transition-all"
           >
             {suggestion}
@@ -213,10 +217,19 @@ export default function ChatPage() {
     }
   }, [messages, streamingContent, autoScroll]);
 
-  // Focus input on mount
+  // Focus input on mount + listen for suggestion clicks
   useEffect(() => {
     inputRef.current?.focus();
-  }, []);
+    const handler = (e: Event) => {
+      const suggestion = (e as CustomEvent).detail;
+      if (suggestion && status === "connected") {
+        send(suggestion);
+        setAutoScroll(true);
+      }
+    };
+    window.addEventListener("atlas-suggestion", handler);
+    return () => window.removeEventListener("atlas-suggestion", handler);
+  }, [send, status]);
 
   const handleSend = useCallback(() => {
     const text = input.trim();

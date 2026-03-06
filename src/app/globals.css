@@ -274,3 +274,41 @@
 .prose code {
   font-family: var(--font-data);
 }
+
+/* Alert pulse for CI failures */
+@keyframes alert-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+.alert-pulse {
+  animation: alert-pulse 2s ease-in-out infinite;
+}
+
+/* Task runner step animations */
+.task-runner-enter {
+  animation: fade-slide-in 0.4s ease-out;
+}
+.step-done {
+  animation: fade-slide-in 0.3s ease-out;
+}
+.step-active {
+  animation: deposit-pulse 1.5s ease-in-out infinite;
+}
+.step-detail {
+  animation: fade-slide-in 0.3s ease-out;
+}
+.ci-expand {
+  animation: fade-slide-in 0.2s ease-out;
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid hsl(var(--warm-gold) / 0.4);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+/* Subtle border glow on hover */
+.border-glow:hover {
+  box-shadow: 0 0 0 1px hsl(var(--warm-gold) / 0.15);
+}

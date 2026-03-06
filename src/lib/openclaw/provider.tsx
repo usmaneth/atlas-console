@@ -131,21 +131,16 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
       const chatEvent = payload as unknown as ChatEventPayload;
       const { state, message: msg } = chatEvent;
 
-      // Only process events for our session — check multiple possible locations
+      // Only process events for our session
       const raw = chatEvent as unknown as Record<string, unknown>;
-      const eventSession = (raw.sessionKey ?? raw.session ?? (raw.metadata as Record<string, unknown>)?.sessionKey) as string | undefined;
-      
-      // Log first event to debug structure
-      if (!eventSession) {
-        console.log("[OpenClaw] Chat event keys:", Object.keys(raw), "state:", state);
-      }
-      
+      const eventSession = (raw.sessionKey ?? raw.session) as string | undefined;
       if (eventSession && eventSession !== sessionKeyRef.current) return;
 
       if (state === "delta") {
         const text = extractText(msg?.content ?? "");
         if (text) {
-          setStreamingContent((prev) => (prev ?? "") + text);
+          // Gateway sends cumulative deltas (full text so far), not incremental
+          setStreamingContent(text);
         }
       } else if (state === "final") {
         setStreamingContent((prev) => {

@@ -12,6 +12,7 @@ import {
   Bot,
   Settings,
   Github,
+  FileText,
   Sun,
   Moon,
   ChevronLeft,
@@ -37,6 +38,7 @@ const iconMap: Record<string, typeof LayoutDashboard> = {
   "bot": Bot,
   "settings": Settings,
   "github": Github,
+  "file-text": FileText,
 };
 
 export function Sidebar({ currentRoute, onNavigate }: SidebarProps) {

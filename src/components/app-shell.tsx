@@ -17,14 +17,14 @@ export function AppShell() {
   }, [currentRoute]);
 
   const currentModule = getModuleByRoute(currentRoute);
-  const isChat = currentModule?.id === "chat";
+  const isFullHeight = currentModule?.id === "chat" || currentModule?.id === "notes";
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar currentRoute={currentRoute} onNavigate={navigate} />
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header — hidden for chat (it has its own) */}
-        {!isChat && (
+        {!isFullHeight && (
           <header className="flex items-center justify-between h-14 px-8 border-b border-border/30 shrink-0">
             <h1 className="font-serif text-lg font-semibold tracking-tight text-foreground">
               {currentModule?.name ?? "Atlas Console"}
@@ -35,8 +35,8 @@ export function AppShell() {
           </header>
         )}
         {/* Content */}
-        <div className={`flex-1 overflow-auto ${isChat ? "" : "px-8 py-6"}`}>
-          <div className={isChat ? "h-full" : "page-enter"}>
+        <div className={`flex-1 overflow-auto ${isFullHeight ? "" : "px-8 py-6"}`}>
+          <div className={isFullHeight ? "h-full" : "page-enter"}>
             <CurrentPage onNavigate={navigate} />
           </div>
         </div>

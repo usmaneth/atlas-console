@@ -56,8 +56,11 @@ export class OpenClawClient {
       this.connectResolve = resolve;
       this.connectReject = reject;
 
+      // Smart URL resolution: if configured URL fails, try alternative
+      const url = this.resolveWsUrl();
+
       try {
-        this.ws = new WebSocket(this.config.url);
+        this.ws = new WebSocket(url);
 
         this.ws.onmessage = (event) => {
           try {
@@ -274,6 +277,25 @@ export class OpenClawClient {
       pending.reject(new Error(reason));
       this.pending.delete(id);
     }
+  }
+
+  private resolveWsUrl(): string {
+    const configured = this.config.url;
+    if (typeof window === "undefined") return configured;
+
+    // If we're accessing from public IP but URL points to localhost/127.0.0.1,
+    // rewrite to use the same host but on the gateway proxy port
+    const hostname = window.location.hostname;
+    const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
+
+    if (isLocalhost) {
+      // On localhost, connect directly to gateway
+      return configured.replace(/\/\/[^:/]+/, `//127.0.0.1`);
+    }
+
+    // On public IP, use the socat proxy port (18790)
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${hostname}:18790`;
   }
 
   private scheduleReconnect(): void {

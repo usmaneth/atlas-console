@@ -1,0 +1,6 @@
+{
+  "name": "Notes",
+  "icon": "file-text",
+  "route": "/notes",
+  "order": 2.5
+}

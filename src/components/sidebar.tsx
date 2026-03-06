@@ -146,7 +146,7 @@ export function Sidebar({ currentRoute, onNavigate }: SidebarProps) {
           </TooltipTrigger>
           {collapsed && (
             <TooltipContent side="right" className="text-xs">
-              {theme === "dark" ? "Light mode" : "Dark mode"}
+              {mounted && theme === "dark" ? "Light mode" : "Dark mode"}
             </TooltipContent>
           )}
         </Tooltip>

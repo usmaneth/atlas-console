@@ -74,8 +74,18 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
   const sessionKeyRef = useRef<string>(SESSION_KEY);
 
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_GATEWAY_URL || "ws://localhost:18789";
-    const token = process.env.NEXT_PUBLIC_GATEWAY_TOKEN;
+    // Resolve WS URL: use env var, or auto-detect from browser location
+    let url = process.env.NEXT_PUBLIC_GATEWAY_URL || "";
+    const token = process.env.NEXT_PUBLIC_GATEWAY_TOKEN || "";
+
+    if (!url && typeof window !== "undefined") {
+      const host = window.location.hostname;
+      const isLocal = host === "localhost" || host === "127.0.0.1";
+      url = isLocal ? "ws://127.0.0.1:18789" : `ws://${host}:18790`;
+    }
+    if (!url) url = "ws://localhost:18789";
+
+    console.log("[OpenClaw] Provider init — url:", url, "token:", token ? `set (${token.slice(0, 6)}...)` : "MISSING");
 
     const client = new OpenClawClient({ url, token });
     clientRef.current = client;

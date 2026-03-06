@@ -58,6 +58,7 @@ export class OpenClawClient {
 
       // Smart URL resolution: if configured URL fails, try alternative
       const url = this.resolveWsUrl();
+      console.log("[OpenClaw WS] Connecting to:", url);
 
       try {
         this.ws = new WebSocket(url);
@@ -185,16 +186,13 @@ export class OpenClawClient {
   private handleResponse(res: GatewayResponse): void {
     const id = res.id;
     const pending = this.pending.get(id);
-    if (!pending) return;
-
-    this.pending.delete(id);
-    clearTimeout(pending.timer);
 
     console.log("[OpenClaw WS] Response:", res.ok ? "ok" : "fail", res.ok ? "" : JSON.stringify(res.error));
 
+    // Even if no pending request, we might receive a connect payload
     if (res.ok && res.payload) {
-      // Check if this is the hello-ok connect response
-      if ((res.payload as Record<string, unknown>).type === "hello-ok") {
+      const payloadObj = res.payload as Record<string, unknown>;
+      if (payloadObj.type === "hello-ok" || payloadObj.snapshot) {
         this.helloPayload = res.payload as unknown as HelloOkPayload;
         this.reconnectDelay = INITIAL_RECONNECT_DELAY;
         this.setStatus("connected");
@@ -204,6 +202,14 @@ export class OpenClawClient {
           this.connectReject = null;
         }
       }
+    }
+
+    if (!pending) return;
+
+    this.pending.delete(id);
+    clearTimeout(pending.timer);
+
+    if (res.ok && res.payload) {
       pending.resolve(res.payload);
     } else {
       pending.reject(res.error ?? new Error("Request failed"));
@@ -277,22 +283,12 @@ export class OpenClawClient {
   }
 
   private resolveWsUrl(): string {
-    const configured = this.config.url;
-    if (typeof window === "undefined") return configured;
+    if (typeof window === "undefined") return this.config.url;
 
-    // If we're accessing from public IP but URL points to localhost/127.0.0.1,
-    // rewrite to use the same host but on the gateway proxy port
-    const hostname = window.location.hostname;
-    const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1";
-
-    if (isLocalhost) {
-      // On localhost, connect directly to gateway
-      return configured.replace(/\/\/[^:/]+/, `//127.0.0.1`);
-    }
-
-    // On public IP, use the socat proxy port (18790)
+    // Use same-origin WS proxy (/api/gateway-ws) to avoid port-blocking issues
+    // The custom server.mjs proxies this to ws://127.0.0.1:18789
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${hostname}:18790`;
+    return `${protocol}//${window.location.host}/api/gateway-ws`;
   }
 
   private scheduleReconnect(): void {

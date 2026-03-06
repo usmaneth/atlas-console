@@ -521,7 +521,7 @@ export default function DashboardPage() {
             ) : prs.length > 0 ? (
               <div className="space-y-2">
                 {prs.slice(0, 5).map((pr) => (
-                  <div key={pr.number} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-card/40 border border-border/20 hover:bg-accent/20 transition-colors group">
+                  <div key={pr.url} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-card/40 border border-border/20 hover:bg-accent/20 transition-colors group">
                     <GitPullRequest className={`h-4 w-4 shrink-0 ${pr.state === "open" ? "text-emerald-400" : "text-purple-400"}`} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">

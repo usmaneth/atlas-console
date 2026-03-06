@@ -277,12 +277,12 @@ export default function ChatPage() {
         {/* Channel List */}
         <ScrollArea className="flex-1 px-2 py-2">
           <div className="space-y-0.5">
-            {channels.map((channel) => {
+            {channels.map((channel, ci) => {
               const isActive = channel.id === activeChannel;
               const Icon = channel.icon;
               return (
                 <button
-                  key={channel.id}
+                  key={channel.id || `ch-${ci}`}
                   onClick={() => setActiveChannel(channel.id)}
                   className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-all ${
                     isActive
@@ -307,9 +307,9 @@ export default function ChatPage() {
             <div className="mt-6">
               <h3 className="text-[10px] font-data uppercase tracking-wider text-muted-foreground/40 px-3 mb-2">Active Sessions</h3>
               <div className="space-y-0.5">
-                {sessions.slice(0, 8).map((session) => (
+                {sessions.slice(0, 8).map((session, si) => (
                   <div
-                    key={session.id}
+                    key={session.id || session.key || `sess-${si}`}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent/30 transition-colors cursor-default"
                   >
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-400/60 shrink-0" />

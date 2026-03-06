@@ -115,10 +115,14 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
       setStatus(newStatus);
     });
 
-    // Listen for chat events
+    // Listen for chat events — only process events for our webchat session
     const unsubChat = client.on("chat", (payload) => {
       const chatEvent = payload as unknown as ChatEventPayload;
       const { state, message: msg } = chatEvent;
+
+      // Only process events for our session
+      const eventSession = (chatEvent as unknown as Record<string, unknown>).sessionKey as string | undefined;
+      if (eventSession && eventSession !== sessionKeyRef.current) return;
 
       if (state === "delta") {
         const text = extractText(msg?.content ?? "");
@@ -128,6 +132,10 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
       } else if (state === "final") {
         setStreamingContent((prev) => {
           const finalContent = prev ?? extractText(msg?.content ?? "");
+          // Skip system/internal messages
+          if (!finalContent || finalContent.includes("HEARTBEAT_OK") || finalContent.startsWith("NO_REPLY")) {
+            return null;
+          }
           if (finalContent) {
             const chatMsg: ChatMessage = {
               id: chatEvent.runId || crypto.randomUUID(),
@@ -235,7 +243,7 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
         }
       }).catch(() => {});
 
-      // Fetch chat history
+      // Fetch chat history — filter out system messages, heartbeats, and internal events
       client.request("chat.history", {
         sessionKey: sessionKeyRef.current,
         limit: 100,
@@ -247,14 +255,22 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
           const historyMessages: ChatMessage[] = [];
           for (let i = 0; i < historyList.length; i++) {
             const m = historyList[i];
+            const role = (m.role as string) || "";
+            // Skip system messages, tool calls, and internal events
+            if (role === "system" || role === "tool") continue;
             const id = (m.id as string) || `hist-${i}`;
             if (seen.has(id)) continue;
             seen.add(id);
             const content = extractText(m.content ?? m.text ?? "");
             if (!content) continue;
+            // Skip heartbeat prompts and system event injections
+            if (content.includes("HEARTBEAT_OK")) continue;
+            if (content.includes("Read HEARTBEAT.md")) continue;
+            if (content.includes("System (untrusted)")) continue;
+            if (content.startsWith("NO_REPLY")) continue;
             historyMessages.push({
               id,
-              role: (m.role as string) === "user" ? "user" as const : "atlas" as const,
+              role: role === "user" ? "user" as const : "atlas" as const,
               content,
               timestamp: m.timestamp ? new Date(m.timestamp as string) : new Date(),
             });

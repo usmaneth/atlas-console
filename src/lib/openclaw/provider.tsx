@@ -60,7 +60,7 @@ interface OpenClawProviderProps {
   children: ReactNode;
 }
 
-const SESSION_KEY = "webchat:atlas";
+const SESSION_KEY = "agent:atlas:webchat";
 
 // uuid() only works on HTTPS — fallback for HTTP
 function uuid(): string {
@@ -313,7 +313,6 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
     setMessages((prev) => [...prev, msg]);
     client.request("chat.send", {
       sessionKey: sessionKeyRef.current,
-      agentId: "atlas",
       message: content,
       idempotencyKey: uuid(),
     }).catch((err) => console.error("[OpenClaw] Send failed:", err));

@@ -15,7 +15,6 @@ import {
   User,
   Clock,
   FileText,
-  Loader2,
   Upload,
   Brain,
   CheckCircle2,
@@ -177,7 +176,7 @@ function ContextDeposit({ onComplete }: { onComplete: () => void }) {
 
   if (phase !== "idle" && phase !== "done") {
     return (
-      <div className="rounded-xl border border-violet-500/20 bg-card/80 p-8 flex flex-col items-center justify-center min-h-[200px]">
+      <div className="rounded-xl border border-warm-gold/20 bg-card/50 px-5 py-6 flex flex-col items-center justify-center min-h-[200px]">
         <div className="space-y-4 w-full max-w-sm">
           {depositPhases.slice(0, -1).map((p, i) => {
             const isActive = i === currentPhaseIndex;
@@ -194,13 +193,17 @@ function ContextDeposit({ onComplete }: { onComplete: () => void }) {
                   {isDone ? (
                     <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                   ) : (
-                    <Icon className={`h-5 w-5 ${isActive ? "text-violet-400" : "text-muted-foreground/30"}`} />
+                    <Icon className={`h-5 w-5 ${isActive ? "text-warm-gold" : "text-muted-foreground/30"}`} />
                   )}
                 </div>
                 <span className={`text-sm ${isActive ? "text-foreground font-medium" : "text-muted-foreground"}`}>
                   {p.label}
                 </span>
-                {isActive && <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400 ml-auto" />}
+                {isActive && (
+                  <div className="ml-auto flex items-center gap-1.5">
+                    <div className="skeleton h-3.5 w-3.5 rounded-full" />
+                  </div>
+                )}
               </div>
             );
           })}
@@ -211,28 +214,28 @@ function ContextDeposit({ onComplete }: { onComplete: () => void }) {
 
   if (phase === "done" && stats) {
     return (
-      <div className="rounded-xl border border-emerald-500/20 bg-card/80 p-6 deposit-done">
+      <div className="rounded-xl border border-emerald-500/20 bg-card/50 px-5 py-5 deposit-done">
         <div className="flex items-center gap-2 mb-4">
           <CheckCircle2 className="h-5 w-5 text-emerald-400" />
           <span className="text-sm font-medium text-emerald-400">Context deposited successfully</span>
         </div>
         <div className="flex items-center gap-6 mb-4">
           <div className="text-center">
-            <p className="text-2xl font-mono font-bold">{stats.facts}</p>
-            <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">Facts</p>
+            <p className="text-2xl font-data font-bold">{stats.facts}</p>
+            <p className="font-data text-[10px] text-muted-foreground/50 uppercase tracking-wider">Facts</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-mono font-bold">{stats.people}</p>
-            <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">People</p>
+            <p className="text-2xl font-data font-bold">{stats.people}</p>
+            <p className="font-data text-[10px] text-muted-foreground/50 uppercase tracking-wider">People</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-mono font-bold">{stats.decisions}</p>
-            <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">Decisions</p>
+            <p className="text-2xl font-data font-bold">{stats.decisions}</p>
+            <p className="font-data text-[10px] text-muted-foreground/50 uppercase tracking-wider">Decisions</p>
           </div>
         </div>
         <button
           onClick={handleReset}
-          className="text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          className="text-[11px] text-soft-blue hover:text-soft-blue/80 transition-colors"
         >
           Deposit more context
         </button>
@@ -241,11 +244,11 @@ function ContextDeposit({ onComplete }: { onComplete: () => void }) {
   }
 
   return (
-    <div className="rounded-xl border border-dashed border-border hover:border-muted-foreground/30 bg-card/30 transition-colors">
-      <div className="p-4">
+    <div className="rounded-xl border border-dashed border-border/30 hover:border-warm-gold/30 bg-card/30 transition-colors">
+      <div className="px-5 py-4">
         <div className="flex items-center gap-2 mb-3">
-          <Upload className="h-4 w-4 text-muted-foreground/50" />
-          <span className="text-sm font-medium">Deposit Context</span>
+          <Upload className="h-4 w-4 text-warm-gold/60" />
+          <h3 className="font-serif text-base font-semibold tracking-tight">Deposit Context</h3>
         </div>
         <textarea
           value={text}
@@ -254,13 +257,13 @@ function ContextDeposit({ onComplete }: { onComplete: () => void }) {
           className="w-full h-32 bg-transparent text-[13px] placeholder:text-muted-foreground/30 resize-none border-none outline-none leading-relaxed"
         />
         {text.trim() && (
-          <div className="flex items-center justify-between pt-2 border-t border-border/50">
-            <span className="text-[10px] text-muted-foreground/40">
+          <div className="flex items-center justify-between pt-2 border-t border-border/30">
+            <span className="font-data text-[10px] text-muted-foreground/40">
               {text.split(/\s+/).filter(Boolean).length} words
             </span>
             <button
               onClick={handleDeposit}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/15 border border-violet-500/25 text-violet-400 text-[12px] font-medium hover:bg-violet-500/25 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-warm-gold/15 border border-warm-gold/25 text-warm-gold text-[12px] font-medium hover:bg-warm-gold/25 transition-all"
             >
               <Brain className="h-3.5 w-3.5" />
               Process
@@ -276,23 +279,23 @@ function ContextDeposit({ onComplete }: { onComplete: () => void }) {
 
 function PersonCard({ entry }: { entry: MemoryEntry }) {
   return (
-    <Card className="hover:bg-accent/30 transition-colors">
-      <CardContent className="pt-5">
+    <Card className="card-hover rounded-xl border-border/30 bg-card/40">
+      <CardContent className="px-5 py-4">
         <div className="flex items-start gap-3">
           <div className="h-10 w-10 rounded-full bg-blue-500/15 flex items-center justify-center shrink-0">
             <User className="h-5 w-5 text-blue-400" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold">{entry.title}</h3>
+              <h3 className="font-serif text-sm font-semibold tracking-tight">{entry.title}</h3>
               {entry.meta?.role && (
-                <Badge variant="secondary" className="text-[10px]">{entry.meta.role}</Badge>
+                <Badge variant="secondary" className="font-data text-[10px]">{entry.meta.role}</Badge>
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{entry.summary}</p>
             <div className="flex items-center gap-2 mt-2">
               {entry.tags.map((tag) => (
-                <span key={tag} className="text-[10px] font-mono text-muted-foreground/60 bg-secondary px-1.5 py-0.5 rounded">{tag}</span>
+                <span key={tag} className="font-data text-[10px] text-muted-foreground/60 bg-secondary px-1.5 py-0.5 rounded">{tag}</span>
               ))}
             </div>
           </div>
@@ -304,21 +307,21 @@ function PersonCard({ entry }: { entry: MemoryEntry }) {
 
 function DecisionCard({ entry }: { entry: MemoryEntry }) {
   return (
-    <Card className="hover:bg-accent/30 transition-colors border-l-2 border-l-amber-400/50">
-      <CardContent className="pt-5">
+    <Card className="card-hover rounded-xl border-border/30 bg-card/40 border-l-2 border-l-amber-400/50">
+      <CardContent className="px-5 py-4">
         <div className="flex items-start gap-3">
           <div className="flex flex-col items-center gap-1">
             <Scale className="h-4 w-4 text-amber-400" />
-            <div className="w-px h-full bg-border" />
+            <div className="w-px h-full bg-border/30" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold">{entry.title}</h3>
+            <h3 className="font-serif text-sm font-semibold tracking-tight">{entry.title}</h3>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{entry.summary}</p>
             <div className="flex items-center gap-3 mt-2">
-              <span className="text-[10px] font-mono text-muted-foreground/50">{entry.updatedAt}</span>
+              <span className="font-data text-[10px] text-muted-foreground/50">{entry.updatedAt}</span>
               <div className="flex gap-1">
                 {entry.tags.map((tag) => (
-                  <span key={tag} className="text-[10px] font-mono text-muted-foreground/60 bg-secondary px-1.5 py-0.5 rounded">{tag}</span>
+                  <span key={tag} className="font-data text-[10px] text-muted-foreground/60 bg-secondary px-1.5 py-0.5 rounded">{tag}</span>
                 ))}
               </div>
             </div>
@@ -335,19 +338,19 @@ function DefaultCard({ entry }: { entry: MemoryEntry }) {
   const color = config?.color ?? "text-muted-foreground";
 
   return (
-    <Card className="hover:bg-accent/30 transition-colors">
-      <CardContent className="pt-5">
+    <Card className="card-hover rounded-xl border-border/30 bg-card/40">
+      <CardContent className="px-5 py-4">
         <div className="flex items-start gap-3">
           <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${color}`} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">{entry.title}</h3>
-              <span className="text-[10px] font-mono text-muted-foreground/50">{entry.updatedAt}</span>
+              <h3 className="font-serif text-sm font-semibold tracking-tight">{entry.title}</h3>
+              <span className="font-data text-[10px] text-muted-foreground/50">{entry.updatedAt}</span>
             </div>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{entry.summary}</p>
             <div className="flex gap-1 mt-2">
               {entry.tags.map((tag) => (
-                <span key={tag} className="text-[10px] font-mono text-muted-foreground/60 bg-secondary px-1.5 py-0.5 rounded">{tag}</span>
+                <span key={tag} className="font-data text-[10px] text-muted-foreground/60 bg-secondary px-1.5 py-0.5 rounded">{tag}</span>
               ))}
             </div>
           </div>
@@ -431,25 +434,31 @@ export default function MemoryPage() {
   }, [entries]);
 
   return (
-    <div className="flex flex-col gap-6 h-[calc(100vh-5rem)]">
+    <div className="flex flex-col gap-8 h-[calc(100vh-5rem)]">
+      {/* Section Header */}
+      <div>
+        <h2 className="font-serif text-xl font-semibold tracking-tight">Memory</h2>
+      </div>
+
       {/* Context Deposit */}
       <ContextDeposit onComplete={loadEntries} />
 
       {/* File Browser */}
       <div className="flex flex-1 min-h-0">
         {/* Sidebar */}
-        <div className="w-48 border-r border-border pr-4 flex flex-col gap-1">
+        <div className="w-48 border-r border-border/30 pr-4 flex flex-col gap-1">
+          <h3 className="font-serif text-xs font-semibold tracking-tight uppercase text-muted-foreground/60 mb-2 px-3">Categories</h3>
           <button
             onClick={() => setActiveCategory("all")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors text-left ${
               activeCategory === "all"
-                ? "bg-accent text-accent-foreground"
+                ? "bg-warm-gold/10 text-warm-gold border border-warm-gold/20"
                 : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
             }`}
           >
             <Clock className="h-4 w-4" />
             All Entries
-            <span className="ml-auto text-[10px] font-mono text-muted-foreground">{entries.length}</span>
+            <span className="ml-auto font-data text-[10px] text-muted-foreground">{entries.length}</span>
           </button>
           {Object.entries(categoryConfig).map(([key, { label, icon: Icon, color }]) => {
             const count = categoryCounts[key] || 0;
@@ -458,15 +467,15 @@ export default function MemoryPage() {
               <button
                 key={key}
                 onClick={() => setActiveCategory(key as Category)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors text-left ${
                   activeCategory === key
-                    ? "bg-accent text-accent-foreground"
+                    ? "bg-warm-gold/10 text-warm-gold border border-warm-gold/20"
                     : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                 }`}
               >
                 <Icon className={`h-4 w-4 ${color}`} />
-                {label}
-                <span className="ml-auto text-[10px] font-mono text-muted-foreground">{count}</span>
+                <span className="font-data uppercase tracking-wider text-[11px]">{label}</span>
+                <span className="ml-auto font-data text-[10px] text-muted-foreground">{count}</span>
               </button>
             );
           })}
@@ -481,12 +490,12 @@ export default function MemoryPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search memory entries..."
-              className="w-full pl-9 pr-4 py-2 bg-secondary rounded-lg text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full pl-9 pr-4 py-2 bg-card/40 border border-border/30 rounded-xl text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-warm-gold/30 focus:border-warm-gold/30 transition-colors"
             />
           </div>
 
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs text-muted-foreground">
+            <span className="font-data text-xs text-muted-foreground">
               {filtered.length} {filtered.length === 1 ? "entry" : "entries"}
               {activeCategory !== "all" && ` in ${categoryConfig[activeCategory]?.label}`}
             </span>
@@ -494,16 +503,18 @@ export default function MemoryPage() {
 
           <ScrollArea className="flex-1">
             {loading ? (
-              <div className="flex flex-col items-center py-16 text-muted-foreground">
-                <Loader2 className="h-8 w-8 mb-3 animate-spin opacity-40" />
-                <p className="text-sm">Loading memory files...</p>
+              <div className="space-y-4 pr-2 py-4">
+                <div className="skeleton h-24 w-full rounded-xl" />
+                <div className="skeleton h-24 w-full rounded-xl" />
+                <div className="skeleton h-24 w-full rounded-xl" />
+                <div className="skeleton h-24 w-3/4 rounded-xl" />
               </div>
             ) : error ? (
               <div className="flex flex-col items-center py-16 text-red-400">
                 <p className="text-sm">{error}</p>
               </div>
             ) : (
-              <div className="space-y-3 pr-2">
+              <div className="space-y-3 pr-2 stagger-children">
                 {filtered.map((entry) => {
                   if (entry.category === "people") return <PersonCard key={entry.id} entry={entry} />;
                   if (entry.category === "decisions") return <DecisionCard key={entry.id} entry={entry} />;

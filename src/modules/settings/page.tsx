@@ -135,12 +135,12 @@ export default function SettingsPage() {
 
   return (
     <ScrollArea className="h-[calc(100vh-5rem)]">
-      <div className="space-y-6 max-w-2xl pr-4">
+      <div className="space-y-8 max-w-2xl pr-4">
         {/* Gateway Connection */}
-        <Card>
+        <Card className="card-hover">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Wifi className="h-4 w-4" />
+            <CardTitle className="flex items-center gap-2 font-serif text-lg font-semibold tracking-tight">
+              <Wifi className="h-4 w-4 text-warm-gold" />
               Gateway Connection
             </CardTitle>
           </CardHeader>
@@ -157,7 +157,7 @@ export default function SettingsPage() {
                         : "bg-red-500"
                   }`}
                 />
-                <span className="text-sm font-mono capitalize">{status}</span>
+                <span className="text-sm font-data capitalize">{status}</span>
               </div>
             </div>
             <Separator />
@@ -166,7 +166,7 @@ export default function SettingsPage() {
               <Input
                 value={gatewayUrl}
                 readOnly
-                className="font-mono text-sm bg-secondary border-border"
+                className="font-data text-sm bg-secondary border-border rounded-xl"
               />
             </div>
             <div className="space-y-2">
@@ -177,7 +177,7 @@ export default function SettingsPage() {
                     type={showToken ? "text" : "password"}
                     value={token}
                     readOnly
-                    className="font-mono text-sm bg-secondary border-border pr-10"
+                    className="font-data text-sm bg-secondary border-border pr-10 rounded-xl"
                   />
                   <button
                     onClick={() => setShowToken(!showToken)}
@@ -190,7 +190,7 @@ export default function SettingsPage() {
             </div>
             <button
               onClick={() => window.location.reload()}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary hover:bg-accent text-sm transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-warm-gold/10 border border-warm-gold/20 text-warm-gold hover:bg-warm-gold/20 text-sm transition-colors"
             >
               <RefreshCw className="h-3.5 w-3.5" />
               Reconnect
@@ -199,10 +199,10 @@ export default function SettingsPage() {
         </Card>
 
         {/* Integrations */}
-        <Card>
+        <Card className="card-hover">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Puzzle className="h-4 w-4" />
+            <CardTitle className="flex items-center gap-2 font-serif text-lg font-semibold tracking-tight">
+              <Puzzle className="h-4 w-4 text-warm-gold" />
               Integrations
             </CardTitle>
           </CardHeader>
@@ -216,7 +216,7 @@ export default function SettingsPage() {
               integrations.map((integration) => (
                 <div
                   key={integration.name}
-                  className="flex items-center gap-3 px-3 py-3 rounded-lg hover:bg-accent/30 transition-colors"
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-warm-gold/5 transition-all duration-200"
                 >
                   <StatusIcon status={integration.status} />
                   <integration.icon className={`h-4 w-4 ${integration.color}`} />
@@ -225,7 +225,7 @@ export default function SettingsPage() {
                       <span className="text-sm font-medium">{integration.name}</span>
                       <Badge
                         variant="secondary"
-                        className={`text-[10px] ${
+                        className={`text-[10px] font-data ${
                           integration.status === "connected"
                             ? "text-emerald-400"
                             : integration.status === "error"
@@ -238,7 +238,7 @@ export default function SettingsPage() {
                     </div>
                     <p className="text-[11px] text-muted-foreground/60 mt-0.5">{integration.description}</p>
                   </div>
-                  <Badge variant="secondary" className="text-[10px]">
+                  <Badge variant="secondary" className="text-[10px] font-data">
                     {integration.enabled ? "enabled" : "disabled"}
                   </Badge>
                 </div>
@@ -250,10 +250,10 @@ export default function SettingsPage() {
         </Card>
 
         {/* Skills */}
-        <Card>
+        <Card className="card-hover">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Zap className="h-4 w-4" />
+            <CardTitle className="flex items-center gap-2 font-serif text-lg font-semibold tracking-tight">
+              <Zap className="h-4 w-4 text-warm-gold" />
               Skills
             </CardTitle>
           </CardHeader>
@@ -262,15 +262,15 @@ export default function SettingsPage() {
               {skills.map((skill) => (
                 <div
                   key={skill.name}
-                  className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-accent/30 transition-colors"
+                  className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-warm-gold/5 transition-all duration-200"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-mono">{skill.name}</span>
-                    <span className="text-[10px] font-mono text-muted-foreground/50">v{skill.version}</span>
+                    <span className="text-sm font-data">{skill.name}</span>
+                    <span className="text-[10px] font-data text-muted-foreground/50">v{skill.version}</span>
                   </div>
                   <Badge
                     variant={skill.status === "ready" ? "default" : "secondary"}
-                    className={`text-[10px] ${
+                    className={`text-[10px] font-data ${
                       skill.status === "ready"
                         ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
                         : "text-amber-400"
@@ -285,10 +285,10 @@ export default function SettingsPage() {
         </Card>
 
         {/* Identity */}
-        <Card>
+        <Card className="card-hover">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Shield className="h-4 w-4" />
+            <CardTitle className="flex items-center gap-2 font-serif text-lg font-semibold tracking-tight">
+              <Shield className="h-4 w-4 text-warm-gold" />
               Identity
             </CardTitle>
           </CardHeader>
@@ -303,10 +303,10 @@ export default function SettingsPage() {
                 {soulContent && (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-[10px] font-mono">SOUL.md</Badge>
+                      <Badge variant="secondary" className="text-[10px] font-data">SOUL.md</Badge>
                       <span className="text-[10px] text-muted-foreground">read-only</span>
                     </div>
-                    <pre className="text-xs font-mono text-muted-foreground bg-secondary/50 rounded-lg p-4 whitespace-pre-wrap leading-relaxed overflow-auto max-h-48">
+                    <pre className="text-xs font-data text-muted-foreground bg-warm-gold/[0.03] border border-warm-gold/10 rounded-xl p-4 whitespace-pre-wrap leading-relaxed overflow-auto max-h-48">
                       {soulContent}
                     </pre>
                   </div>
@@ -314,10 +314,10 @@ export default function SettingsPage() {
                 {identityContent && (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-[10px] font-mono">IDENTITY.md</Badge>
+                      <Badge variant="secondary" className="text-[10px] font-data">IDENTITY.md</Badge>
                       <span className="text-[10px] text-muted-foreground">read-only</span>
                     </div>
-                    <pre className="text-xs font-mono text-muted-foreground bg-secondary/50 rounded-lg p-4 whitespace-pre-wrap leading-relaxed overflow-auto max-h-48">
+                    <pre className="text-xs font-data text-muted-foreground bg-warm-gold/[0.03] border border-warm-gold/10 rounded-xl p-4 whitespace-pre-wrap leading-relaxed overflow-auto max-h-48">
                       {identityContent}
                     </pre>
                   </div>
@@ -331,10 +331,10 @@ export default function SettingsPage() {
         </Card>
 
         {/* Modules */}
-        <Card>
+        <Card className="card-hover">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <BookOpen className="h-4 w-4" />
+            <CardTitle className="flex items-center gap-2 font-serif text-lg font-semibold tracking-tight">
+              <BookOpen className="h-4 w-4 text-warm-gold" />
               Installed Modules
             </CardTitle>
           </CardHeader>
@@ -343,11 +343,11 @@ export default function SettingsPage() {
               {modules.map((mod) => (
                 <div
                   key={mod.id}
-                  className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-accent/30 transition-colors"
+                  className="flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-warm-gold/5 transition-all duration-200"
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-sm">{mod.name}</span>
-                    <span className="text-[10px] font-mono text-muted-foreground/50">{mod.id}</span>
+                    <span className="text-[10px] font-data text-muted-foreground/50">{mod.id}</span>
                   </div>
                   <Switch
                     checked={moduleStates[mod.id]}

@@ -89,7 +89,7 @@ function timeAgo(dateStr: string): string {
 
 function prStateBadge(state: string) {
   if (state === "open") return "bg-emerald-500/15 text-emerald-400 border-emerald-500/20";
-  if (state === "merged") return "bg-violet-500/15 text-violet-400 border-violet-500/20";
+  if (state === "merged") return "bg-warm-gold/15 text-warm-gold border-warm-gold/20";
   if (state === "closed") return "bg-red-500/15 text-red-400 border-red-500/20";
   return "bg-muted text-muted-foreground";
 }
@@ -161,16 +161,16 @@ function AgentTaskRunner({
   const allDone = steps.every((s) => s.status === "done");
 
   return (
-    <div className="rounded-xl border border-violet-500/20 bg-card/80 overflow-hidden task-runner-enter">
+    <div className="rounded-xl border border-warm-gold/20 bg-card/50 overflow-hidden task-runner-enter">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-violet-500/5">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-border/30 bg-warm-gold/5">
         <div className="flex items-center gap-2">
-          <div className="h-6 w-6 rounded-md bg-violet-500/20 flex items-center justify-center">
-            <Bot className="h-3.5 w-3.5 text-violet-400" />
+          <div className="h-6 w-6 rounded-md bg-warm-gold/20 flex items-center justify-center">
+            <Bot className="h-3.5 w-3.5 text-warm-gold" />
           </div>
           <div>
             <p className="text-[13px] font-medium">atlas-zeta-dev fixing CI</p>
-            <p className="text-[10px] text-muted-foreground/50">{pr.title} -- {pr.repoName}</p>
+            <p className="text-[10px] font-data text-muted-foreground/50">{pr.title} -- {pr.repoName}</p>
           </div>
         </div>
         <button
@@ -182,7 +182,7 @@ function AgentTaskRunner({
       </div>
 
       {/* Step Timeline */}
-      <div className="px-4 py-4">
+      <div className="px-5 py-4">
         <div className="space-y-0">
           {steps.map((step, i) => (
             <div key={step.id} className="flex items-start gap-3 relative">
@@ -195,8 +195,8 @@ function AgentTaskRunner({
                 {step.status === "done" ? (
                   <CheckCircle2 className="h-[22px] w-[22px] text-emerald-400 step-done" />
                 ) : step.status === "active" ? (
-                  <div className="h-[22px] w-[22px] rounded-full border-2 border-violet-400 flex items-center justify-center step-active">
-                    <div className="h-2 w-2 rounded-full bg-violet-400 animate-pulse" />
+                  <div className="h-[22px] w-[22px] rounded-full border-2 border-warm-gold flex items-center justify-center step-active">
+                    <div className="h-2 w-2 rounded-full bg-warm-gold animate-pulse" />
                   </div>
                 ) : step.status === "failed" ? (
                   <XCircle className="h-[22px] w-[22px] text-red-400" />
@@ -213,7 +213,7 @@ function AgentTaskRunner({
                     {step.title}
                   </span>
                   {step.timestamp && (
-                    <span className="text-[9px] font-mono text-muted-foreground/30">{step.timestamp}</span>
+                    <span className="text-[9px] font-data text-muted-foreground/30">{step.timestamp}</span>
                   )}
                 </div>
                 {step.detail && (
@@ -227,7 +227,7 @@ function AgentTaskRunner({
 
       {/* Completion */}
       {allDone && (
-        <div className="px-4 pb-3 step-detail">
+        <div className="px-5 pb-3 step-detail">
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
             <CheckCircle2 className="h-4 w-4 text-emerald-400" />
             <span className="text-[12px] text-emerald-400">Agent completed all steps</span>
@@ -236,10 +236,10 @@ function AgentTaskRunner({
       )}
 
       {/* Collapsible Chat */}
-      <div className="border-t border-border/50">
+      <div className="border-t border-border/30">
         <button
           onClick={() => setChatOpen(!chatOpen)}
-          className="w-full flex items-center justify-between px-4 py-2 text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          className="w-full flex items-center justify-between px-5 py-2 text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
         >
           <div className="flex items-center gap-1.5">
             <MessageSquare className="h-3 w-3" />
@@ -248,8 +248,8 @@ function AgentTaskRunner({
           {chatOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
         </button>
         {chatOpen && (
-          <div className="px-4 pb-3">
-            <div className="rounded-lg border border-border bg-background/50 px-3 py-2">
+          <div className="px-5 pb-3">
+            <div className="rounded-lg border border-border/30 bg-background/50 px-3 py-2">
               <p className="text-[11px] text-muted-foreground/40 mb-2">Agent chat coming soon...</p>
               <input
                 type="text"
@@ -287,8 +287,14 @@ export default function GitHubPage({ onNavigate }: { onNavigate?: (route: string
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/40" />
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <div className="space-y-3 w-full max-w-md">
+          <div className="skeleton h-6 w-48" />
+          <div className="skeleton h-20 w-full" />
+          <div className="skeleton h-20 w-full" />
+          <div className="skeleton h-6 w-36" />
+          <div className="skeleton h-14 w-full" />
+        </div>
       </div>
     );
   }
@@ -298,7 +304,7 @@ export default function GitHubPage({ onNavigate }: { onNavigate?: (route: string
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <Github className="h-10 w-10 text-muted-foreground/30" />
         <p className="text-sm text-muted-foreground/50">GitHub CLI not authenticated</p>
-        <code className="text-xs bg-secondary px-2 py-1 rounded">gh auth login</code>
+        <code className="text-xs font-data bg-secondary px-2 py-1 rounded">gh auth login</code>
       </div>
     );
   }
@@ -307,7 +313,7 @@ export default function GitHubPage({ onNavigate }: { onNavigate?: (route: string
   const closedPRs = github.prs.filter((p) => p.state !== "open");
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Agent Task Runner (when active) */}
       {taskRunnerPR && (
         <AgentTaskRunner
@@ -318,23 +324,23 @@ export default function GitHubPage({ onNavigate }: { onNavigate?: (route: string
 
       {/* Open Pull Requests */}
       <section>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <GitPullRequest className="h-4 w-4 text-emerald-400" />
-            <h2 className="text-sm font-medium">Open Pull Requests</h2>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-mono">
+            <h2 className="font-serif text-xl font-semibold tracking-tight">Open Pull Requests</h2>
+            <Badge variant="secondary" className="font-data text-[10px] px-1.5 py-0 bg-transparent border-border/40">
               {openPRs.length}
             </Badge>
           </div>
         </div>
 
         {openPRs.length > 0 ? (
-          <div className="rounded-xl border border-border bg-card/50 divide-y divide-border/50">
+          <div className="rounded-xl border border-border/30 bg-card/50 divide-y divide-border/30 stagger-children">
             {openPRs.map((pr) => {
               const isExpanded = expandedPR === pr.url;
               return (
-                <div key={pr.url} className="group">
-                  <div className="flex items-start gap-3 px-4 py-3">
+                <div key={pr.url} className="group card-hover">
+                  <div className="flex items-start gap-3 px-5 py-4">
                     <GitPullRequest className="h-4 w-4 mt-0.5 shrink-0 text-emerald-400/60" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -342,37 +348,37 @@ export default function GitHubPage({ onNavigate }: { onNavigate?: (route: string
                           href={pr.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[13px] font-medium hover:underline truncate"
+                          className="text-[13px] font-medium hover:text-soft-blue hover:underline truncate transition-colors"
                         >
                           {pr.title}
                         </a>
-                        <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-40 transition-opacity" />
+                        <ExternalLink className="h-3 w-3 shrink-0 opacity-0 group-hover:opacity-40 transition-opacity text-soft-blue" />
                       </div>
                       <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] font-mono text-muted-foreground/50">{pr.repoName}</span>
+                        <span className="text-[10px] font-data text-muted-foreground/50">{pr.repoName}</span>
                         {pr.ci && (
                           <>
                             {pr.ci.passing > 0 && (
                               <div className="flex items-center gap-0.5">
                                 <CheckCircle2 className="h-3 w-3 text-emerald-400/60" />
-                                <span className="text-[10px] text-emerald-400/60">{pr.ci.passing}</span>
+                                <span className="text-[10px] font-data text-emerald-400/60">{pr.ci.passing}</span>
                               </div>
                             )}
                             {pr.ci.failing > 0 && (
-                              <div className="flex items-center gap-0.5">
+                              <div className="flex items-center gap-0.5 alert-pulse">
                                 <XCircle className="h-3 w-3 text-red-400" />
-                                <span className="text-[10px] text-red-400">{pr.ci.failing} failing</span>
+                                <span className="text-[10px] font-data text-red-400">{pr.ci.failing} failing</span>
                               </div>
                             )}
                             {pr.ci.pending > 0 && (
                               <div className="flex items-center gap-0.5">
                                 <Clock className="h-3 w-3 text-amber-400/60" />
-                                <span className="text-[10px] text-amber-400/60">{pr.ci.pending}</span>
+                                <span className="text-[10px] font-data text-amber-400/60">{pr.ci.pending}</span>
                               </div>
                             )}
                           </>
                         )}
-                        <span className="text-[10px] font-mono text-muted-foreground/30 ml-auto shrink-0">
+                        <span className="text-[10px] font-data text-muted-foreground/30 ml-auto shrink-0">
                           {timeAgo(pr.updatedAt || pr.createdAt)}
                         </span>
                       </div>
@@ -381,7 +387,7 @@ export default function GitHubPage({ onNavigate }: { onNavigate?: (route: string
 
                   {/* CI Failure Details */}
                   {pr.ci && pr.ci.failing > 0 && (
-                    <div className="mx-4 mb-3">
+                    <div className="mx-5 mb-4">
                       <button
                         onClick={() => setExpandedPR(isExpanded ? null : pr.url)}
                         className="flex items-center gap-1.5 text-[11px] text-red-400/70 hover:text-red-400 transition-colors mb-1"
@@ -391,9 +397,9 @@ export default function GitHubPage({ onNavigate }: { onNavigate?: (route: string
                       </button>
 
                       {isExpanded && (
-                        <div className="rounded-lg border border-red-500/15 bg-red-500/5 px-3 py-2 space-y-1.5 ci-expand">
+                        <div className="rounded-xl border border-red-500/15 bg-red-500/5 px-4 py-3 space-y-1.5 ci-expand">
                           {pr.ci.failedChecks.map((check, ci) => (
-                            <div key={ci} className="flex items-center gap-2">
+                            <div key={ci} className="flex items-center gap-2 alert-pulse">
                               <XCircle className="h-3 w-3 text-red-400/60 shrink-0" />
                               <a
                                 href={check.url}
@@ -404,7 +410,7 @@ export default function GitHubPage({ onNavigate }: { onNavigate?: (route: string
                                 {check.name}
                               </a>
                               {check.duration && (
-                                <span className="text-[9px] font-mono text-muted-foreground/30 ml-auto">{check.duration}</span>
+                                <span className="text-[9px] font-data text-muted-foreground/30 ml-auto">{check.duration}</span>
                               )}
                             </div>
                           ))}
@@ -413,7 +419,7 @@ export default function GitHubPage({ onNavigate }: { onNavigate?: (route: string
 
                       <button
                         onClick={() => handleFixWithAgent(pr)}
-                        className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[11px] font-medium hover:bg-violet-500/20 transition-all hover:border-violet-500/30"
+                        className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-warm-gold/10 border border-warm-gold/20 text-warm-gold text-[11px] font-medium hover:bg-warm-gold/20 transition-all hover:border-warm-gold/30"
                       >
                         <Bot className="h-3.5 w-3.5" />
                         Fix with Agent
@@ -426,7 +432,7 @@ export default function GitHubPage({ onNavigate }: { onNavigate?: (route: string
             })}
           </div>
         ) : (
-          <div className="rounded-xl border border-border bg-card/30 px-4 py-8 text-center text-sm text-muted-foreground/40">
+          <div className="rounded-xl border border-border/30 bg-card/40 px-5 py-8 text-center text-sm text-muted-foreground/40">
             No open pull requests
           </div>
         )}
@@ -434,39 +440,39 @@ export default function GitHubPage({ onNavigate }: { onNavigate?: (route: string
 
       {/* Commit Timeline */}
       <section>
-        <div className="flex items-center gap-2 mb-3">
-          <GitCommit className="h-4 w-4 text-blue-400/60" />
-          <h2 className="text-sm font-medium">Recent Commits</h2>
+        <div className="flex items-center gap-2 mb-4">
+          <GitCommit className="h-4 w-4 text-soft-blue/60" />
+          <h2 className="font-serif text-xl font-semibold tracking-tight">Recent Commits</h2>
         </div>
 
         {github.commits.length > 0 ? (
-          <div className="rounded-xl border border-border bg-card/50">
-            <div className="divide-y divide-border/50">
+          <div className="rounded-xl border border-border/30 bg-card/50">
+            <div className="divide-y divide-border/30 stagger-children">
               {github.commits.map((c) => (
                 <a
                   key={c.sha}
                   href={c.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-accent/20 transition-colors group"
+                  className="flex items-center gap-3 px-5 py-4 hover:bg-accent/20 transition-colors group card-hover"
                 >
-                  <div className="h-6 w-6 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0">
-                    <span className="text-[9px] font-bold text-blue-400">
+                  <div className="h-6 w-6 rounded-full bg-soft-blue/10 flex items-center justify-center shrink-0">
+                    <span className="text-[9px] font-bold text-soft-blue">
                       {c.author.charAt(0).toUpperCase()}
                     </span>
                   </div>
-                  <code className="text-[10px] font-mono text-violet-400/50 shrink-0">{c.sha}</code>
+                  <code className="text-[10px] font-data text-warm-gold/50 shrink-0">{c.sha}</code>
                   <span className="text-[12px] truncate flex-1">{c.message}</span>
-                  <span className="text-[10px] font-mono text-muted-foreground/30 shrink-0">
+                  <span className="text-[10px] font-data text-muted-foreground/30 shrink-0">
                     {timeAgo(c.date)}
                   </span>
-                  <ExternalLink className="h-3 w-3 text-muted-foreground/0 group-hover:text-muted-foreground/30 transition-colors shrink-0" />
+                  <ExternalLink className="h-3 w-3 text-muted-foreground/0 group-hover:text-soft-blue/40 transition-colors shrink-0" />
                 </a>
               ))}
             </div>
           </div>
         ) : (
-          <div className="rounded-xl border border-border bg-card/30 px-4 py-6 text-center text-sm text-muted-foreground/40">
+          <div className="rounded-xl border border-border/30 bg-card/40 px-5 py-6 text-center text-sm text-muted-foreground/40">
             No commits found
           </div>
         )}
@@ -474,40 +480,40 @@ export default function GitHubPage({ onNavigate }: { onNavigate?: (route: string
 
       {/* Repositories */}
       <section>
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-4">
           <Github className="h-4 w-4 text-muted-foreground/50" />
-          <h2 className="text-sm font-medium">Repositories</h2>
+          <h2 className="font-serif text-xl font-semibold tracking-tight">Repositories</h2>
         </div>
 
         {github.repos.length > 0 ? (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3 stagger-children">
             {github.repos.map((r) => (
               <a
                 key={r.name}
                 href={r.url || "#"}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-lg border border-border bg-card/30 px-4 py-3 hover:border-muted-foreground/20 transition-colors group"
+                className="rounded-xl border border-border/30 bg-card/40 px-5 py-4 hover:border-warm-gold/20 transition-colors group card-hover"
               >
                 <div className="flex items-center gap-2 mb-1">
                   {r.isPrivate ? (
-                    <Lock className="h-3 w-3 text-amber-400/50" />
+                    <Lock className="h-3 w-3 text-warm-gold/50" />
                   ) : (
                     <Globe className="h-3 w-3 text-muted-foreground/30" />
                   )}
-                  <span className="text-[13px] font-mono font-medium">{r.name}</span>
+                  <span className="text-[13px] font-data font-medium">{r.name}</span>
                 </div>
                 {r.description && (
                   <p className="text-[11px] text-muted-foreground/40 truncate">{r.description}</p>
                 )}
-                <p className="text-[9px] font-mono text-muted-foreground/25 mt-1">
+                <p className="text-[9px] font-data text-muted-foreground/25 mt-1">
                   updated {timeAgo(r.pushedAt)}
                 </p>
               </a>
             ))}
           </div>
         ) : (
-          <div className="rounded-xl border border-border bg-card/30 px-4 py-6 text-center text-sm text-muted-foreground/40">
+          <div className="rounded-xl border border-border/30 bg-card/40 px-5 py-6 text-center text-sm text-muted-foreground/40">
             No repositories found
           </div>
         )}
@@ -516,24 +522,24 @@ export default function GitHubPage({ onNavigate }: { onNavigate?: (route: string
       {/* Recently closed/merged PRs */}
       {closedPRs.length > 0 && (
         <section>
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 mb-4">
             <GitPullRequest className="h-4 w-4 text-muted-foreground/30" />
-            <h2 className="text-sm font-medium text-muted-foreground/60">Recently Closed</h2>
+            <h2 className="font-serif text-xl font-semibold tracking-tight text-muted-foreground/60">Recently Closed</h2>
           </div>
-          <div className="rounded-xl border border-border bg-card/30 divide-y divide-border/30">
+          <div className="rounded-xl border border-border/30 bg-card/40 divide-y divide-border/30 stagger-children">
             {closedPRs.slice(0, 5).map((pr) => (
               <a
                 key={pr.url}
                 href={pr.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-3 px-4 py-2 hover:bg-accent/10 transition-colors text-muted-foreground/50"
+                className="flex items-center gap-3 px-5 py-4 hover:bg-accent/10 transition-colors text-muted-foreground/50 card-hover"
               >
                 <span className="text-[12px] truncate flex-1">{pr.title}</span>
-                <Badge variant="secondary" className={`text-[9px] px-1.5 py-0 ${prStateBadge(pr.state)}`}>
+                <Badge variant="secondary" className={`font-data text-[9px] px-1.5 py-0 bg-transparent border-border/40 ${prStateBadge(pr.state)}`}>
                   {pr.state}
                 </Badge>
-                <span className="text-[10px] font-mono text-muted-foreground/25 shrink-0">
+                <span className="text-[10px] font-data text-muted-foreground/25 shrink-0">
                   {timeAgo(pr.updatedAt || pr.createdAt)}
                 </span>
               </a>

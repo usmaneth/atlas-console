@@ -61,30 +61,30 @@ function AgentCard({
   const color = agentColors[colorIndex % agentColors.length];
   return (
     <Card
-      className="cursor-pointer hover:border-muted-foreground/30 transition-all duration-200 group"
+      className="cursor-pointer card-hover rounded-xl border-border/30 transition-all duration-200 group"
       onClick={onClick}
     >
-      <CardContent className="pt-6">
+      <CardContent className="pt-6 pb-5 px-6">
         <div className="flex items-start gap-4">
           <div className={`flex items-center justify-center h-12 w-12 rounded-xl ${color} shrink-0`}>
-            <span className="text-lg font-bold text-white">{agent.name[0]?.toUpperCase()}</span>
+            <span className="text-lg font-bold text-white font-serif">{agent.name[0]?.toUpperCase()}</span>
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-semibold">{agent.name}</h3>
+              <h3 className="font-serif text-lg">{agent.name}</h3>
               <span className={`h-2 w-2 rounded-full ${statusColor(agentStatus)} ${agentStatus === "active" ? "animate-pulse" : ""}`} />
-              <Badge variant="secondary" className="text-[10px] font-mono">{statusLabel(agentStatus)}</Badge>
+              <Badge variant="secondary" className="text-[10px] font-data">{statusLabel(agentStatus)}</Badge>
             </div>
-            <p className="text-sm text-muted-foreground mt-0.5">{agent.id}</p>
+            <p className="text-sm text-muted-foreground mt-0.5 font-data">{agent.id}</p>
 
             {agent.model && (
-              <div className="mt-3 px-3 py-1.5 rounded-md bg-accent/50 text-xs font-mono text-muted-foreground">
+              <div className="mt-3 px-3 py-1.5 rounded-md bg-accent/50 text-xs font-data text-muted-foreground">
                 Model: {agent.model}
               </div>
             )}
 
             <div className="flex items-center justify-between mt-3">
-              <div className="flex items-center gap-3 text-[10px] font-mono text-muted-foreground">
+              <div className="flex items-center gap-3 text-[10px] font-data text-muted-foreground">
                 {agent.workspace && <span className="truncate max-w-[200px]">{agent.workspace}</span>}
               </div>
             </div>
@@ -125,21 +125,21 @@ function AgentDetail({
           <ChevronLeft className="h-4 w-4" />
         </button>
         <div className={`flex items-center justify-center h-10 w-10 rounded-xl ${color}`}>
-          <span className="text-lg font-bold text-white">{agent.name[0]?.toUpperCase()}</span>
+          <span className="text-lg font-bold text-white font-serif">{agent.name[0]?.toUpperCase()}</span>
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">{agent.name}</h2>
+            <h2 className="font-serif text-lg font-semibold">{agent.name}</h2>
             <span className={`h-2 w-2 rounded-full ${statusColor(agentStatus)} ${agentStatus === "active" ? "animate-pulse" : ""}`} />
-            <Badge variant="secondary" className="text-[10px] font-mono">{statusLabel(agentStatus)}</Badge>
+            <Badge variant="secondary" className="text-[10px] font-data">{statusLabel(agentStatus)}</Badge>
           </div>
-          <p className="text-sm text-muted-foreground">{agent.id}</p>
+          <p className="text-sm text-muted-foreground font-data">{agent.id}</p>
         </div>
       </div>
 
-      <Card>
-        <CardContent className="pt-5">
-          <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+      <Card className="rounded-xl border-border/30">
+        <CardContent className="pt-5 px-6">
+          <h3 className="font-serif text-sm font-medium mb-3 flex items-center gap-2">
             <ExternalLink className="h-4 w-4 text-muted-foreground" />
             Configuration
           </h3>
@@ -147,16 +147,16 @@ function AgentDetail({
             {configEntries.map((cfg) => (
               <div key={cfg.key} className="flex items-start justify-between gap-4">
                 <span className="text-sm text-muted-foreground shrink-0">{cfg.key}</span>
-                <span className="text-sm font-mono text-right break-all">{cfg.value}</span>
+                <span className="text-sm font-data text-right break-all">{cfg.value}</span>
               </div>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="pt-5">
-          <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
+      <Card className="rounded-xl border-border/30">
+        <CardContent className="pt-5 px-6">
+          <h3 className="font-serif text-sm font-medium mb-3 flex items-center gap-2">
             <Bot className="h-4 w-4 text-muted-foreground" />
             Capabilities
           </h3>
@@ -221,8 +221,8 @@ export default function AgentsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Agent Fleet</h2>
-          <p className="text-sm text-muted-foreground">
+          <h2 className="font-serif text-2xl font-semibold tracking-tight">Agent Fleet</h2>
+          <p className="text-sm text-muted-foreground mt-1">
             {loading ? "Loading..." : `${Object.values(agentStatuses).filter((s) => s === "active").length} active · ${agents.length} total`}
           </p>
         </div>
@@ -230,7 +230,7 @@ export default function AgentsPage() {
           <TooltipTrigger asChild>
             <button
               disabled
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent/50 text-sm text-muted-foreground/50 cursor-not-allowed"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-warm-gold/10 border border-warm-gold/20 text-warm-gold text-sm cursor-not-allowed opacity-60"
             >
               <Plus className="h-4 w-4" />
               Spawn Agent
@@ -246,7 +246,7 @@ export default function AgentsPage() {
           Loading agents from config...
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4 stagger-children">
           {agents.map((agent, i) => (
             <AgentCard
               key={agent.id}

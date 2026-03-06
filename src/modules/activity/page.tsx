@@ -140,40 +140,43 @@ export default function ActivityPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Integration Health */}
-      <div className="grid grid-cols-4 gap-3">
-        {channelList.length > 0 ? (
-          channelList.map((ch) => {
-            const Icon = channelIcons[ch.type] || MessageSquare;
-            const color = channelColors[ch.type] || "text-muted-foreground";
-            return (
-              <Card key={ch.name} className="hover:bg-accent/20 transition-colors">
-                <CardContent className="pt-4 pb-3">
-                  <div className="flex items-center gap-2.5">
-                    <Icon className={`h-4 w-4 ${color}`} />
-                    <span className="text-sm font-medium flex-1">{ch.name}</span>
-                    <HealthStatusIcon status={ch.status} />
-                  </div>
-                  <div className="flex items-center justify-between mt-2">
-                    <Badge
-                      variant="secondary"
-                      className={`text-[10px] ${
-                        ch.status === "connected" ? "text-emerald-400" : ch.status === "error" ? "text-alert" : "text-muted-foreground/50"
-                      }`}
-                    >
-                      {ch.status}
-                    </Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })
-        ) : (
-          <div className="col-span-4 text-sm text-muted-foreground/50 py-2">
-            No integrations configured. Activity events will appear here as they stream in.
-          </div>
-        )}
+      <div>
+        <h2 className="font-serif text-lg text-foreground mb-4">Integration Health</h2>
+        <div className="grid grid-cols-4 gap-3">
+          {channelList.length > 0 ? (
+            channelList.map((ch) => {
+              const Icon = channelIcons[ch.type] || MessageSquare;
+              const color = channelColors[ch.type] || "text-muted-foreground";
+              return (
+                <Card key={ch.name} className="rounded-xl border-border/30 bg-card/40 card-hover transition-colors">
+                  <CardContent className="px-5 py-4">
+                    <div className="flex items-center gap-2.5">
+                      <Icon className={`h-4 w-4 ${color}`} />
+                      <span className="text-sm font-medium flex-1">{ch.name}</span>
+                      <HealthStatusIcon status={ch.status} />
+                    </div>
+                    <div className="flex items-center justify-between mt-2">
+                      <Badge
+                        variant="secondary"
+                        className={`font-data text-[10px] ${
+                          ch.status === "connected" ? "text-emerald-400" : ch.status === "error" ? "text-alert" : "text-muted-foreground/50"
+                        }`}
+                      >
+                        {ch.status}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })
+          ) : (
+            <div className="col-span-4 text-sm text-muted-foreground/50 py-2">
+              No integrations configured. Activity events will appear here as they stream in.
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -184,9 +187,9 @@ export default function ActivityPage() {
             <button
               key={f}
               onClick={() => setIntegrationFilter(f)}
-              className={`px-2.5 py-1 rounded text-xs transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
                 integrationFilter === f
-                  ? "bg-accent text-accent-foreground"
+                  ? "bg-warm-gold/15 text-warm-gold border border-warm-gold/20"
                   : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
               }`}
             >
@@ -200,9 +203,9 @@ export default function ActivityPage() {
             <button
               key={f}
               onClick={() => setTypeFilter(f)}
-              className={`px-2.5 py-1 rounded text-xs transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
                 typeFilter === f
-                  ? "bg-accent text-accent-foreground"
+                  ? "bg-warm-gold/15 text-warm-gold border border-warm-gold/20"
                   : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
               }`}
             >
@@ -211,29 +214,29 @@ export default function ActivityPage() {
           ))}
         </div>
         <div className="flex-1" />
-        <span className="text-xs text-muted-foreground font-mono">{filtered.length} events</span>
+        <span className="text-xs text-muted-foreground font-data">{filtered.length} events</span>
       </div>
 
       {/* Timeline */}
       <ScrollArea className="h-[calc(100vh-20rem)]">
-        <div className="space-y-6">
+        <div className="space-y-8">
           {groupOrder.map((groupKey) => {
             const groupEvents = grouped[groupKey];
             if (!groupEvents || groupEvents.length === 0) return null;
 
             return (
               <div key={groupKey}>
-                <div className="flex items-center gap-3 mb-3">
-                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{groupKey}</h3>
-                  <div className="h-px flex-1 bg-border" />
-                  <span className="text-[10px] font-mono text-muted-foreground/50">{groupEvents.length} events</span>
+                <div className="flex items-center gap-3 mb-4">
+                  <h3 className="font-serif text-lg text-muted-foreground">{groupKey}</h3>
+                  <div className="h-px flex-1 bg-border/40" />
+                  <span className="text-[10px] font-data text-muted-foreground/50">{groupEvents.length} events</span>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1.5 stagger-children">
                   {groupEvents.map((event) => {
                     const TypeIcon = typeIcons[event.type] ?? Activity;
                     return (
-                      <div key={event.id} className="flex items-start gap-3 px-3 py-2.5 rounded-lg hover:bg-accent/30 transition-colors group">
+                      <div key={event.id} className="flex items-start gap-3 px-5 py-4 rounded-lg bg-card/50 border border-border/30 hover:bg-accent/20 transition-all group">
                         <div className="flex flex-col items-center gap-1 pt-1.5">
                           <span className={`h-2 w-2 rounded-full ${integrationColors[event.integration] || "bg-muted-foreground"}`} />
                         </div>
@@ -242,20 +245,22 @@ export default function ActivityPage() {
                             event.type === "alert"
                               ? "text-alert"
                               : event.type === "idea"
-                                ? "text-yellow-400"
-                                : integrationTextColors[event.integration] || "text-muted-foreground"
+                                ? "text-warm-gold"
+                                : event.type === "action"
+                                  ? "text-soft-blue"
+                                  : integrationTextColors[event.integration] || "text-muted-foreground"
                           }`}
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium truncate">{event.title}</span>
-                            <Badge variant="secondary" className="text-[10px] shrink-0">{typeLabels[event.type]}</Badge>
+                            <Badge variant="secondary" className="font-data text-[10px] shrink-0">{typeLabels[event.type]}</Badge>
                           </div>
                           {event.description && (
                             <p className="text-xs text-muted-foreground/60 mt-0.5 truncate">{event.description}</p>
                           )}
                         </div>
-                        <span className="text-[10px] font-mono text-muted-foreground/50 shrink-0 pt-0.5">{formatTime(event.timestamp)}</span>
+                        <span className="text-[10px] font-data text-muted-foreground/50 shrink-0 pt-0.5">{formatTime(event.timestamp)}</span>
                       </div>
                     );
                   })}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Playfair_Display, JetBrains_Mono } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { OpenClawProvider } from "@/lib/openclaw/provider";
 import "./globals.css";
@@ -38,15 +39,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${jetbrainsMono.variable} antialiased`}
       >
-        <OpenClawProvider>
-          <TooltipProvider delayDuration={200}>
-            {children}
-          </TooltipProvider>
-        </OpenClawProvider>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+          <OpenClawProvider>
+            <TooltipProvider delayDuration={200}>
+              {children}
+            </TooltipProvider>
+          </OpenClawProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -45,12 +45,39 @@
   --color-soft-blue: #7ba7d4;
 }
 
+/* ─── Light Theme (default) ─── */
 :root {
   --radius: 0.625rem;
-  /* Warm charcoal — NOT pure black */
+  --background: hsl(40 30% 97%);
+  --foreground: hsl(220 20% 14%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(220 20% 14%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(220 20% 14%);
+  --primary: hsl(220 20% 14%);
+  --primary-foreground: hsl(40 30% 97%);
+  --secondary: hsl(40 20% 94%);
+  --secondary-foreground: hsl(220 20% 14%);
+  --muted: hsl(40 15% 93%);
+  --muted-foreground: hsl(220 10% 46%);
+  --accent: hsl(35 50% 95%);
+  --accent-foreground: hsl(220 20% 14%);
+  --destructive: hsl(0 72% 51%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(30 15% 88%);
+  --input: hsl(30 15% 88%);
+  --ring: hsl(25 60% 52%);
+  --sidebar: hsl(40 20% 98%);
+  --sidebar-foreground: hsl(220 10% 40%);
+  --sidebar-border: hsl(30 15% 91%);
+  --sidebar-accent: hsl(35 40% 95%);
+  --sidebar-accent-foreground: hsl(220 20% 14%);
+}
+
+/* ─── Dark Theme ─── */
+.dark {
   --background: hsl(220 12% 8%);
   --foreground: hsl(40 10% 92%);
-  /* Cards: warm dark gray */
   --card: hsl(220 10% 11%);
   --card-foreground: hsl(40 10% 92%);
   --popover: hsl(220 10% 11%);
@@ -68,7 +95,6 @@
   --border: hsl(220 8% 16%);
   --input: hsl(220 8% 16%);
   --ring: hsl(35 40% 55%);
-  /* Sidebar: deeper warm charcoal */
   --sidebar: hsl(225 12% 7%);
   --sidebar-foreground: hsl(220 8% 48%);
   --sidebar-border: hsl(220 10% 13%);

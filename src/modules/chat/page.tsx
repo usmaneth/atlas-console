@@ -69,7 +69,7 @@ export default function ChatPage() {
         ) : (
           <div className="max-w-3xl mx-auto py-8 space-y-2">
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} role={msg.role} content={msg.content} timestamp={msg.timestamp} />
+              <MessageBubble key={msg.id} role={msg.role} content={typeof msg.content === "string" ? msg.content : String(msg.content)} timestamp={msg.timestamp} />
             ))}
             {isStreaming && (
               <MessageBubble role="atlas" content={streamingContent} timestamp={new Date()} isStreaming />
@@ -159,7 +159,7 @@ function MessageBubble({
             </span>
           )}
         </div>
-        <div className="text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1.5 prose-pre:my-3 prose-code:text-warm-gold prose-code:bg-secondary prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
+        <div className="text-sm leading-relaxed prose dark:prose-invert prose-sm max-w-none prose-p:my-1.5 prose-pre:my-3 prose-code:text-warm-gold prose-code:bg-secondary prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-none prose-code:after:content-none">
           <ReactMarkdown
             components={{
               code({ className, children, ...props }) {
@@ -168,7 +168,7 @@ function MessageBubble({
                 if (match) {
                   return (
                     <div className="relative group/code">
-                      <div className="flex items-center justify-between px-4 py-1.5 bg-[oklch(0.14_0.005_60)] rounded-t-lg border border-b-0 border-border/60">
+                      <div className="flex items-center justify-between px-4 py-1.5 bg-muted rounded-t-lg border border-b-0 border-border/60">
                         <span className="font-data text-[10px] text-muted-foreground uppercase">
                           {match[1]}
                         </span>
@@ -181,8 +181,8 @@ function MessageBubble({
                           margin: 0,
                           borderRadius: "0 0 0.75rem 0.75rem",
                           fontSize: "12px",
-                          background: "oklch(0.16 0.005 60)",
-                          border: "1px solid oklch(0.25 0.005 60)",
+                          background: "var(--muted)",
+                          border: "1px solid var(--border)",
                           borderTop: "none",
                         }}
                       >

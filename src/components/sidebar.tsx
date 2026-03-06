@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useTheme } from "next-themes";
 import { getModules } from "@/lib/modules/registry";
 import { useGateway } from "@/lib/openclaw/hooks";
 import {
@@ -16,6 +17,8 @@ import {
   Settings,
   Bot,
   Github,
+  Sun,
+  Moon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -51,6 +54,28 @@ function ConnectionIndicator({ status }: { status: string }) {
       </TooltipTrigger>
       <TooltipContent side="right">
         <span className="capitalize">{status}</span>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className="flex items-center justify-center h-9 w-9 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground transition-colors"
+        >
+          <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          <span className="sr-only">Toggle theme</span>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="right" className="font-sans text-xs">
+        Toggle theme
       </TooltipContent>
     </Tooltip>
   );
@@ -107,6 +132,9 @@ export function Sidebar({ currentRoute, onNavigate }: SidebarProps) {
           );
         })}
       </nav>
+
+      {/* Theme toggle */}
+      <ThemeToggle />
 
       {/* Connection status at bottom */}
       <ConnectionIndicator status={status} />

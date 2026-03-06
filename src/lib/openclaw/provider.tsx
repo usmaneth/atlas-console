@@ -131,8 +131,15 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
       const chatEvent = payload as unknown as ChatEventPayload;
       const { state, message: msg } = chatEvent;
 
-      // Only process events for our session
-      const eventSession = (chatEvent as unknown as Record<string, unknown>).sessionKey as string | undefined;
+      // Only process events for our session — check multiple possible locations
+      const raw = chatEvent as unknown as Record<string, unknown>;
+      const eventSession = (raw.sessionKey ?? raw.session ?? (raw.metadata as Record<string, unknown>)?.sessionKey) as string | undefined;
+      
+      // Log first event to debug structure
+      if (!eventSession) {
+        console.log("[OpenClaw] Chat event keys:", Object.keys(raw), "state:", state);
+      }
+      
       if (eventSession && eventSession !== sessionKeyRef.current) return;
 
       if (state === "delta") {

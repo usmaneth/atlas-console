@@ -113,49 +113,14 @@ function AgentTaskRunner({
   const [currentStep, setCurrentStep] = useState(0);
   const [chatOpen, setChatOpen] = useState(false);
 
-  // Simulate agent execution
+  // TODO: Wire to real agent dispatch via gateway
+  // For now, show the steps as "pending" — real dispatch coming soon
   useEffect(() => {
-    const timings = [1200, 2000, 2500, 3000, 1500];
-    let step = 0;
-    let timeout: NodeJS.Timeout;
-
-    function advance() {
-      if (step >= steps.length) return;
-
-      setSteps((prev) =>
-        prev.map((s, i) => {
-          if (i === step) return { ...s, status: "active", timestamp: new Date().toLocaleTimeString() };
-          return s;
-        })
-      );
-      setCurrentStep(step);
-
-      timeout = setTimeout(() => {
-        setSteps((prev) =>
-          prev.map((s, i) => {
-            if (i === step) {
-              const details: Record<number, string> = {
-                0: `Found ${pr.ci?.failing || 0} failed checks in CI output`,
-                1: `Failures: ${pr.ci?.failedChecks.map((c) => c.name).join(", ") || "unknown"}`,
-                2: "Traced to test assertion mismatch in updated component",
-                3: "Patched test expectations to match new behavior",
-                4: `Committed to ${pr.repoName}`,
-              };
-              return { ...s, status: "done", detail: details[i], timestamp: new Date().toLocaleTimeString() };
-            }
-            return s;
-          })
-        );
-        step++;
-        if (step < steps.length) {
-          advance();
-        }
-      }, timings[step]);
-    }
-
-    advance();
-    return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Mark first step as active to show it's "waiting"
+    setSteps((prev) =>
+      prev.map((s, i) => (i === 0 ? { ...s, status: "active", detail: "Agent dispatch coming soon — will connect to atlas-zeta-dev agent via gateway" } : s))
+    );
+    setCurrentStep(0);
   }, []);
 
   const allDone = steps.every((s) => s.status === "done");

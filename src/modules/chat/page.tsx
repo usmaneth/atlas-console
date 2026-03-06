@@ -38,10 +38,7 @@ interface Channel {
 }
 
 const DEFAULT_CHANNELS: Channel[] = [
-  { id: "general", name: "general", icon: Hash, description: "Main conversation with Atlas", sessionKey: "atlas-console" },
-  { id: "platform", name: "platform", icon: Zap, description: "Atlas Console build progress" },
-  { id: "ideas", name: "ideas", icon: Sparkles, description: "Product thoughts & suggestions" },
-  { id: "github", name: "github", icon: MessageSquare, description: "PR/issue activity" },
+  { id: "general", name: "general", icon: Hash, description: "Talk to Atlas — your cofounder in the machine", sessionKey: "atlas-console" },
 ];
 
 /* ─── Code Block with Copy ─── */

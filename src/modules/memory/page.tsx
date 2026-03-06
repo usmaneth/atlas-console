@@ -135,32 +135,54 @@ function ContextDeposit({ onComplete }: { onComplete: () => void }) {
     setPhase("understanding");
     setCurrentPhaseIndex(0);
 
-    // Simulate processing phases
-    const timings = [1500, 2000, 1800];
-    for (let i = 0; i < 3; i++) {
-      await new Promise((r) => setTimeout(r, timings[i]));
-      setCurrentPhaseIndex(i + 1);
-      setPhase(depositPhases[i + 1].phase);
-    }
+    // Phase 1: Understanding — analyze the text
+    await new Promise((r) => setTimeout(r, 800));
+    setCurrentPhaseIndex(1);
+    setPhase("extracting");
 
-    // Generate fake stats based on content
-    const words = text.split(/\s+/).length;
+    // Phase 2: Extract real stats from the content
+    const lines = text.split("\n").filter((l) => l.trim());
+    const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 10);
+
+    // Count real people (capitalized names, @mentions)
+    const namePattern = /(?:^|\s)([A-Z][a-z]+(?:\s[A-Z][a-z]+)+)/g;
+    const mentionPattern = /@(\w+)/g;
+    const peopleSet = new Set<string>();
+    let match;
+    while ((match = namePattern.exec(text)) !== null) peopleSet.add(match[1].trim());
+    while ((match = mentionPattern.exec(text)) !== null) peopleSet.add(match[1]);
+
+    // Count real decisions (lines with "decided", "will", "should", "agreed", action items)
+    const decisionKeywords = /\b(decided|decision|agreed|will\s+\w+|should\s+\w+|action\s+item|todo|TODO|\[[ x]\])/gi;
+    const decisions = (text.match(decisionKeywords) || []).length;
+
+    // Count facts (sentences that state information)
+    const facts = sentences.length;
+
+    await new Promise((r) => setTimeout(r, 600));
+    setCurrentPhaseIndex(2);
+    setPhase("connecting");
+
+    await new Promise((r) => setTimeout(r, 500));
+
     setStats({
-      facts: Math.max(3, Math.floor(words / 8)),
-      people: Math.max(1, Math.floor(words / 50)),
-      decisions: Math.max(1, Math.floor(words / 80)),
+      facts: Math.max(1, facts),
+      people: peopleSet.size,
+      decisions: Math.max(0, decisions),
     });
 
-    // Actually save the content
+    // Save the content to memory
+    const filename = `context-deposit-${new Date().toISOString().split("T")[0]}-${Date.now().toString(36)}.md`;
     try {
-      const filename = `context-deposit-${new Date().toISOString().split("T")[0]}-${Date.now().toString(36)}.md`;
       await fetch(`/api/memory/${filename}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: `# Context Deposit\n\n${text}` }),
+        body: JSON.stringify({
+          content: `# Context Deposit — ${new Date().toLocaleDateString()}\n\n${text}\n\n---\n_Deposited: ${new Date().toISOString()}_\n_Stats: ${facts} facts, ${peopleSet.size} people, ${decisions} decisions_`,
+        }),
       });
     } catch {
-      // Save failed silently -- the animation still completes
+      // Save failed silently
     }
 
     setPhase("done");

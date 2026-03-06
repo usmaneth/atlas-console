@@ -56,45 +56,61 @@ interface GitHubPR {
 
 /* ─── Smart Insights Generator ─── */
 
-function generateInsights(events: ActivityEvent[], prs: GitHubPR[]): SmartInsight[] {
+function generateInsights(events: ActivityEvent[], prs: GitHubPR[], calendarEvents: CalendarEvent[], unreadEmails: number): SmartInsight[] {
   const insights: SmartInsight[] = [];
 
-  // PR-based insights
-  const reviewNeeded = prs.filter((pr) => pr.reviewDecision === "REVIEW_REQUIRED" || pr.state === "open");
-  if (reviewNeeded.length > 0) {
+  // Calendar: upcoming meeting within 2 hours
+  const soonMeetings = calendarEvents.filter((e) => {
+    const diff = new Date(e.start).getTime() - Date.now();
+    return diff > 0 && diff < 2 * 3600000;
+  });
+  if (soonMeetings.length > 0) {
+    insights.push({
+      id: "meeting-soon",
+      type: "action",
+      title: `${soonMeetings[0].summary} ${soonMeetings.length > 1 ? `(+${soonMeetings.length - 1} more)` : ""}`,
+      description: `Starting ${Math.round((new Date(soonMeetings[0].start).getTime() - Date.now()) / 60000)} min from now${soonMeetings[0].attendees ? ` • ${soonMeetings[0].attendees} attendees` : ""}`,
+      source: "calendar",
+      priority: "high",
+      timestamp: new Date(),
+      actionLabel: soonMeetings[0].meetLink ? "Join meeting" : undefined,
+    });
+  }
+
+  // PR-based: failing CI
+  const failingPrs = prs.filter((pr) => pr.state === "open");
+  if (failingPrs.length > 0) {
     insights.push({
       id: "pr-reviews",
       type: "action",
-      title: `${reviewNeeded.length} PR${reviewNeeded.length > 1 ? "s" : ""} need attention`,
-      description: reviewNeeded.map((pr) => `#${pr.number} ${pr.title}`).slice(0, 3).join(" • "),
+      title: `${failingPrs.length} open PR${failingPrs.length > 1 ? "s" : ""}`,
+      description: failingPrs.map((pr) => pr.title).slice(0, 3).join(" • "),
       source: "github",
-      priority: "high",
+      priority: "medium",
       timestamp: new Date(),
       actionLabel: "Review PRs",
     });
   }
 
-  // Event-based insights
-  const recentAlerts = events.filter((e) => e.type === "alert");
-  if (recentAlerts.length > 0) {
+  // Unread emails
+  if (unreadEmails > 10) {
     insights.push({
-      id: "alerts",
-      type: "alert",
-      title: `${recentAlerts.length} alert${recentAlerts.length > 1 ? "s" : ""} detected`,
-      description: recentAlerts[0]?.title || "Check activity feed for details",
-      source: "system",
-      priority: "high",
+      id: "email-pileup",
+      type: "insight",
+      title: `${unreadEmails} unread emails`,
+      description: "Your inbox is piling up — might be worth a quick triage.",
+      source: "gmail",
+      priority: unreadEmails > 50 ? "high" : "medium",
       timestamp: new Date(),
     });
   }
 
-  // Always add a suggestion
   if (insights.length === 0) {
     insights.push({
       id: "proactive",
       type: "suggestion",
       title: "All clear — time to build",
-      description: "No blockers or urgent items. Good time to pick up a task or review the roadmap.",
+      description: "No meetings soon, no urgent PRs, inbox is clean. Ship something.",
       source: "atlas",
       priority: "low",
       timestamp: new Date(),
@@ -195,11 +211,11 @@ function InsightCard({ insight }: { insight: SmartInsight }) {
   );
 }
 
-function QuickStats({ prs, sessions }: { prs: GitHubPR[]; sessions: { id: string }[] }) {
+function QuickStats({ prs, sessions, unreadEmails }: { prs: GitHubPR[]; sessions: { id: string }[]; unreadEmails: number }) {
   const stats = [
     { label: "Open PRs", value: prs.filter((p) => p.state === "open").length, icon: GitPullRequest, color: "text-soft-blue" },
-    { label: "Sessions", value: sessions.length, icon: Bot, color: "text-warm-gold" },
-    { label: "Activity", value: "Live", icon: Activity, color: "text-emerald-400" },
+    { label: "Unread Email", value: unreadEmails, icon: MessageSquare, color: "text-warm-gold" },
+    { label: "Agents", value: sessions.length || "—", icon: Bot, color: "text-emerald-400" },
   ];
 
   return (
@@ -435,19 +451,29 @@ export default function DashboardPage() {
   const { sessions } = useSessions();
   const [prs, setPrs] = useState<GitHubPR[]>([]);
   const [loadingPrs, setLoadingPrs] = useState(true);
+  const [calEvents, setCalEvents] = useState<CalendarEvent[]>([]);
+  const [unreadEmails, setUnreadEmails] = useState(0);
 
-  // Fetch GitHub PRs
+  // Fetch all real data
   useEffect(() => {
-    fetch("/api/github?action=prs")
+    fetch("/api/github")
       .then((r) => r.json())
       .then((data) => {
         if (data.prs) setPrs(data.prs);
       })
       .catch(() => {})
       .finally(() => setLoadingPrs(false));
+
+    fetch("/api/google?action=overview")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.calendar?.events) setCalEvents(data.calendar.events);
+        if (data.gmail?.unreadCount) setUnreadEmails(data.gmail.unreadCount);
+      })
+      .catch(() => {});
   }, []);
 
-  const insights = useMemo(() => generateInsights(events, prs), [events, prs]);
+  const insights = useMemo(() => generateInsights(events, prs, calEvents, unreadEmails), [events, prs, calEvents, unreadEmails]);
 
   return (
     <div className="space-y-8">
@@ -463,7 +489,7 @@ export default function DashboardPage() {
       <StatusBar />
 
       {/* Quick Stats */}
-      <QuickStats prs={prs} sessions={sessions} />
+      <QuickStats prs={prs} sessions={sessions} unreadEmails={unreadEmails} />
 
       {/* Two Column Layout */}
       <div className="grid grid-cols-5 gap-6">

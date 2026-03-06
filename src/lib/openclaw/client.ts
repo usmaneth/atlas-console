@@ -256,6 +256,8 @@ export class OpenClawClient {
           platform: typeof navigator !== "undefined" ? navigator.platform : "web",
           mode: "webchat",
         },
+        role: "operator",
+        scopes: ["operator.read", "operator.write"],
         auth: { token: this.config.token },
       },
     });

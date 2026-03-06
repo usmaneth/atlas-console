@@ -87,6 +87,27 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
 
     console.log("[OpenClaw] Provider init — url:", url, "token:", token ? `set (${token.slice(0, 6)}...)` : "MISSING");
 
+    // Extract text from gateway message content (can be string, array of blocks, or object)
+    function extractText(content: unknown): string {
+      if (typeof content === "string") return content;
+      if (Array.isArray(content)) {
+        return content
+          .map((block) => {
+            if (typeof block === "string") return block;
+            if (block?.type === "text") return block.text ?? "";
+            if (block?.text) return block.text;
+            return "";
+          })
+          .join("");
+      }
+      if (content && typeof content === "object") {
+        const obj = content as Record<string, unknown>;
+        if (obj.text) return String(obj.text);
+        if (obj.content) return extractText(obj.content);
+      }
+      return "";
+    }
+
     const client = new OpenClawClient({ url, token });
     clientRef.current = client;
 
@@ -100,13 +121,13 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
       const { state, message: msg } = chatEvent;
 
       if (state === "delta") {
-        const text = msg?.content ?? "";
+        const text = extractText(msg?.content ?? "");
         if (text) {
           setStreamingContent((prev) => (prev ?? "") + text);
         }
       } else if (state === "final") {
         setStreamingContent((prev) => {
-          const finalContent = prev ?? msg?.content ?? "";
+          const finalContent = prev ?? extractText(msg?.content ?? "");
           if (finalContent) {
             const chatMsg: ChatMessage = {
               id: chatEvent.runId || crypto.randomUUID(),
@@ -114,7 +135,11 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
               content: finalContent,
               timestamp: new Date(),
             };
-            setMessages((msgs) => [...msgs, chatMsg]);
+            setMessages((msgs) => {
+              // Deduplicate by ID
+              if (msgs.some((m) => m.id === chatMsg.id)) return msgs;
+              return [...msgs, chatMsg];
+            });
           }
           return null;
         });
@@ -218,12 +243,22 @@ export function OpenClawProvider({ children }: OpenClawProviderProps) {
         const data = res as Record<string, unknown>;
         const historyList = (data.messages ?? data.history ?? data) as Record<string, unknown>[];
         if (Array.isArray(historyList)) {
-          const historyMessages: ChatMessage[] = historyList.map((m, i) => ({
-            id: (m.id as string) || `hist-${i}`,
-            role: (m.role as string) === "user" ? "user" as const : "atlas" as const,
-            content: (m.content as string) || (m.text as string) || "",
-            timestamp: m.timestamp ? new Date(m.timestamp as string) : new Date(),
-          }));
+          const seen = new Set<string>();
+          const historyMessages: ChatMessage[] = [];
+          for (let i = 0; i < historyList.length; i++) {
+            const m = historyList[i];
+            const id = (m.id as string) || `hist-${i}`;
+            if (seen.has(id)) continue;
+            seen.add(id);
+            const content = extractText(m.content ?? m.text ?? "");
+            if (!content) continue;
+            historyMessages.push({
+              id,
+              role: (m.role as string) === "user" ? "user" as const : "atlas" as const,
+              content,
+              timestamp: m.timestamp ? new Date(m.timestamp as string) : new Date(),
+            });
+          }
           setMessages(historyMessages);
         }
       }).catch(() => {});

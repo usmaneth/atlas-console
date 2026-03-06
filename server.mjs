@@ -1,83 +1,61 @@
-// Custom server that runs Next.js + WebSocket proxy on the same port
+// Custom server: Next.js + WebSocket gateway proxy on same port
 import { createServer } from "http";
 import { parse } from "url";
 import next from "next";
 import { WebSocketServer, WebSocket } from "ws";
 
 const dev = process.env.NODE_ENV !== "production";
-const hostname = "0.0.0.0";
 const port = parseInt(process.env.PORT || "3001", 10);
 const GATEWAY_URL = "ws://127.0.0.1:18789";
 
-const app = next({ dev, hostname, port });
+const app = next({ dev, hostname: "0.0.0.0", port });
 const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
   const server = createServer((req, res) => {
-    const parsedUrl = parse(req.url, true);
-    handle(req, res, parsedUrl);
+    handle(req, res, parse(req.url, true));
   });
 
-  // WebSocket proxy: /api/gateway-ws → gateway
-  const wss = new WebSocketServer({ noServer: true });
+  // Create a WebSocket server that doesn't attach to the http server
+  const gatewayWss = new WebSocketServer({ noServer: true });
 
+  gatewayWss.on("connection", (clientWs, req) => {
+    console.log("[WS Proxy] Browser connected");
+
+    const gwWs = new WebSocket(GATEWAY_URL, {
+      headers: { origin: req.headers.origin || "http://187.124.91.6:3001" },
+    });
+
+    gwWs.on("open", () => console.log("[WS Proxy] Gateway connected"));
+
+    clientWs.on("message", (data) => {
+      if (gwWs.readyState === WebSocket.OPEN) gwWs.send(data);
+    });
+    gwWs.on("message", (data) => {
+      if (clientWs.readyState === WebSocket.OPEN) clientWs.send(data);
+    });
+
+    clientWs.on("close", () => gwWs.close());
+    gwWs.on("close", () => clientWs.close());
+    clientWs.on("error", (e) => { console.error("[WS Proxy] Client err:", e.message); gwWs.close(); });
+    gwWs.on("error", (e) => { console.error("[WS Proxy] GW err:", e.message); clientWs.close(); });
+  });
+
+  // Intercept upgrade requests BEFORE Next.js
   server.on("upgrade", (req, socket, head) => {
     const { pathname } = parse(req.url);
+    console.log("[Server] Upgrade:", pathname);
 
     if (pathname === "/api/gateway-ws") {
-      wss.handleUpgrade(req, socket, head, (clientWs) => {
-        // Connect to the real gateway
-        const gwWs = new WebSocket(GATEWAY_URL, {
-          headers: {
-            origin: `http://187.124.91.6:3001`,
-          },
-        });
-
-        gwWs.on("open", () => {
-          console.log("[WS Proxy] Connected to gateway");
-        });
-
-        // Proxy messages both ways
-        clientWs.on("message", (data) => {
-          if (gwWs.readyState === WebSocket.OPEN) {
-            gwWs.send(data);
-          }
-        });
-
-        gwWs.on("message", (data) => {
-          if (clientWs.readyState === WebSocket.OPEN) {
-            clientWs.send(data);
-          }
-        });
-
-        // Handle closes
-        clientWs.on("close", () => {
-          gwWs.close();
-        });
-
-        gwWs.on("close", () => {
-          clientWs.close();
-        });
-
-        // Handle errors
-        clientWs.on("error", (err) => {
-          console.error("[WS Proxy] Client error:", err.message);
-          gwWs.close();
-        });
-
-        gwWs.on("error", (err) => {
-          console.error("[WS Proxy] Gateway error:", err.message);
-          clientWs.close();
-        });
+      gatewayWss.handleUpgrade(req, socket, head, (ws) => {
+        gatewayWss.emit("connection", ws, req);
       });
-    } else {
-      // Let Next.js handle HMR WebSocket upgrades
-      // Don't destroy the socket — Next.js dev server needs it
     }
+    // Don't destroy socket for other paths — let Next.js HMR handle them
   });
 
-  server.listen(port, hostname, () => {
-    console.log(`> Atlas Console ready on http://${hostname}:${port}`);
-    console.log(`> WS proxy: ws://${hostname}:${port}/api/gateway-ws → ${GATEWAY_URL}`);
+  server.listen(port, "0.0.0.0", () => {
+    console.log(`> Atlas Console: http://0.0.0.0:${port}`);
+    console.log(`> WS Proxy: ws://0.0.0.0:${port}/api/gateway-ws → ${GATEWAY_URL}`);
   });
 });

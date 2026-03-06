@@ -285,10 +285,9 @@ export class OpenClawClient {
   private resolveWsUrl(): string {
     if (typeof window === "undefined") return this.config.url;
 
-    // Use same-origin WS proxy (/api/gateway-ws) to avoid port-blocking issues
-    // The custom server.mjs proxies this to ws://127.0.0.1:18789
+    // nginx on port 3001 routes /ws → gateway (127.0.0.1:18789)
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    return `${protocol}//${window.location.host}/api/gateway-ws`;
+    return `${protocol}//${window.location.host}/ws`;
   }
 
   private scheduleReconnect(): void {

@@ -1,0 +1,6 @@
+{
+  "name": "GitHub",
+  "icon": "github",
+  "route": "/github",
+  "order": 1.2
+}

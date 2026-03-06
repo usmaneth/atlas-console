@@ -284,7 +284,8 @@ export class OpenClawClient {
 
   private resolveWsUrl(): string {
     if (typeof window === "undefined") return this.config.url;
-    // nginx on port 3001 routes /ws to gateway at 127.0.0.1:18789
+
+    // nginx routes /ws → gateway on 127.0.0.1:18789
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     return `${protocol}//${window.location.host}/ws`;
   }

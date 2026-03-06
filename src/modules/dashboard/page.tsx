@@ -230,6 +230,98 @@ interface SlackFeedItem {
   replyCount: number;
 }
 
+/* ─── Calendar ─── */
+
+interface CalendarEvent {
+  summary: string;
+  start: string;
+  meetLink?: string;
+  attendees?: number;
+}
+
+function UpcomingCalendar() {
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/google?action=calendar")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.events) setEvents(data.events);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  function formatTime(isoStr: string): string {
+    if (!isoStr) return "";
+    const d = new Date(isoStr);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const isTomorrow = d.toDateString() === new Date(Date.now() + 86400000).toDateString();
+    const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    if (isToday) return `Today ${time}`;
+    if (isTomorrow) return `Tomorrow ${time}`;
+    return `${d.toLocaleDateString("en-US", { weekday: "short" })} ${time}`;
+  }
+
+  function isWithinHours(isoStr: string, hours: number): boolean {
+    return new Date(isoStr).getTime() - Date.now() < hours * 3600000;
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <Clock className="h-4 w-4 text-soft-blue" />
+        <h3 className="font-serif text-base font-semibold tracking-tight">Calendar</h3>
+      </div>
+      {loading ? (
+        <div className="space-y-2">
+          <div className="skeleton h-12 rounded-xl" />
+          <div className="skeleton h-12 rounded-xl" />
+        </div>
+      ) : events.length > 0 ? (
+        <div className="space-y-1.5">
+          {events.slice(0, 5).map((event, i) => {
+            const soon = isWithinHours(event.start, 2);
+            return (
+              <div
+                key={i}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
+                  soon ? "bg-soft-blue/5 border border-soft-blue/15" : "hover:bg-accent/20"
+                }`}
+              >
+                <div className={`h-2 w-2 rounded-full shrink-0 ${soon ? "bg-soft-blue animate-pulse" : "bg-muted-foreground/20"}`} />
+                <div className="flex-1 min-w-0">
+                  <span className={`text-[13px] ${soon ? "font-medium" : ""}`}>{event.summary}</span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[10px] font-data text-muted-foreground/50">{formatTime(event.start)}</span>
+                    {event.attendees && event.attendees > 1 && (
+                      <span className="text-[10px] font-data text-muted-foreground/30">{event.attendees} people</span>
+                    )}
+                  </div>
+                </div>
+                {event.meetLink && (
+                  <a
+                    href={event.meetLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] font-data text-soft-blue hover:text-soft-blue/80 transition-colors shrink-0"
+                  >
+                    Join
+                  </a>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-sm text-muted-foreground/40 py-4 text-center">No upcoming events</p>
+      )}
+    </div>
+  );
+}
+
 function SlackFeed() {
   const [feed, setFeed] = useState<SlackFeedItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -428,6 +520,7 @@ export default function DashboardPage() {
 
         {/* Side Column */}
         <div className="col-span-2 space-y-6">
+          <UpcomingCalendar />
           <SlackFeed />
           <RecentActivity events={events} />
         </div>

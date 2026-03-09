@@ -62,10 +62,10 @@ interface OpenClawProviderProps {
 
 const SESSION_KEY = "agent:atlas:webchat";
 
-// uuid() only works on HTTPS — fallback for HTTP
+// crypto.randomUUID() only works on HTTPS — fallback for HTTP
 function uuid(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return uuid();
+    return crypto.randomUUID();
   }
   return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;

@@ -23,7 +23,7 @@ app.prepare().then(() => {
     console.log("[WS Proxy] Browser connected");
 
     const gwWs = new WebSocket(GATEWAY_URL, {
-      headers: { origin: req.headers.origin || "http://187.124.91.6:3001" },
+      headers: { origin: req.headers.origin || `http://127.0.0.1:${port}` },
     });
 
     gwWs.on("open", () => console.log("[WS Proxy] Gateway connected"));

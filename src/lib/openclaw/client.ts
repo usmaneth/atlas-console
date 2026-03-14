@@ -284,8 +284,10 @@ export class OpenClawClient {
   }
 
   private resolveWsUrl(): string {
+    // Use the configured URL directly (env var NEXT_PUBLIC_GATEWAY_URL)
+    if (this.config.url && this.config.url.startsWith("ws")) return this.config.url;
     if (typeof window === "undefined") return this.config.url;
-    // nginx on port 3001 routes /ws to gateway at 127.0.0.1:18789
+    // Fallback: nginx proxy on same host (VPS deployment)
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     return `${protocol}//${window.location.host}/ws`;
   }
